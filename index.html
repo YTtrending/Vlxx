@@ -2,22 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Video List</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
         .video-card { transition: transform 0.2s; }
         .video-card:hover { transform: scale(1.02); }
-        .pagination-btn { padding: 8px 16px; margin: 0 4px; }
+        .pagination-btn { 
+            padding: 10px 20px; 
+            margin: 0 4px; 
+            font-size: 1rem; 
+            border-radius: 8px; 
+            touch-action: manipulation; 
+        }
         .pagination-btn.active { background-color: #2563eb; color: white; }
         .pagination-btn:disabled { background-color: #e5e7eb; cursor: not-allowed; }
+        @media (max-width: 640px) {
+            .video-card { flex-direction: column; }
+            .video-card img { width: 100%; height: auto; max-height: 200px; }
+            .video-card .ml-4 { margin-left: 0; margin-top: 1rem; }
+            .text-xl { font-size: 1.125rem; }
+            .text-sm { font-size: 0.875rem; }
+            .container { padding: 1rem; }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto p-4">
-        <h1 class="text-3xl font-bold mb-6 text-center">Video Gallery</h1>
+        <h1 class="text-2xl font-bold mb-4 text-center sm:text-3xl">Video Gallery</h1>
         <div id="video-list" class="space-y-4"></div>
-        <div id="pagination" class="flex justify-center mt-6 space-x-2"></div>
+        <div id="pagination" class="flex justify-center mt-6 space-x-2 flex-wrap"></div>
     </div>
 
     <script>
@@ -44,13 +58,13 @@
                         videoCard.className = 'video-card bg-white p-4 rounded-lg shadow-md flex';
                         videoCard.innerHTML = `
                             <a href="${video.link}" target="_blank" class="flex-shrink-0">
-                                <img src="${video.thumbnail}" alt="${video.title}" class="w-32 h-32 object-cover rounded">
+                                <img src="${video.thumbnail}" alt="${video.title}" class="w-24 h-24 object-cover rounded sm:w-32 sm:h-32">
                             </a>
                             <div class="ml-4 flex-1">
-                                <a href="${video.link}" target="_blank" class="text-xl font-semibold text-blue-600 hover:underline">${video.title}</a>
-                                <p class="text-gray-600 mt-2">${video.description.substring(0, 150)}...</p>
-                                <p class="text-sm text-gray-500 mt-1">Actress: ${video.actress} | Views: ${video.views} | Rating: ${video.rating}</p>
-                                <p class="text-sm text-gray-500">Categories: ${video.categories}</p>
+                                <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
+                                <p class="text-gray-600 mt-2 text-sm sm:text-base">${video.description.substring(0, 100)}...</p>
+                                <p class="text-xs text-gray-500 mt-1 sm:text-sm">Actress: ${video.actress} | Views: ${video.views} | Rating: ${video.rating}</p>
+                                <p class="text-xs text-gray-500 sm:text-sm">Categories: ${video.categories}</p>
                             </div>
                         `;
                         videoList.appendChild(videoCard);
@@ -107,7 +121,7 @@
             } catch (error) {
                 console.error('Error loading videos:', error);
                 const videoList = document.getElementById('video-list');
-                videoList.innerHTML = '<p class="text-red-500 text-center">Error loading video data. Please check the data.txt file.</p>';
+                videoList.innerHTML = '<p class="text-red-500 text-center text-sm sm:text-base">Error loading video data. Please check the data.txt file.</p>';
             }
         }
 
