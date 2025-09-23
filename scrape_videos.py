@@ -97,12 +97,15 @@ def worker():
         page_queue.task_done()
         time.sleep(0.5)
 
-# Save data to data.txt as JSON
+# Save data to data.txt as JSON, sorted by page
 def save_data_txt():
     try:
+        df = pd.DataFrame(all_video_data)
+        df = df.sort_values(by='page')  # Sort strictly by page
+        sorted_data = df.to_dict('records')
         with open(DATA_TXT, 'w', encoding='utf-8') as f:
-            json.dump(all_video_data, f, ensure_ascii=False, indent=2)
-        print(f"Saved {DATA_TXT}: {len(all_video_data)} records")
+            json.dump(sorted_data, f, ensure_ascii=False, indent=2)
+        print(f"Saved {DATA_TXT}: {len(sorted_data)} records")
     except Exception as e:
         print(f"Error saving {DATA_TXT}: {e}")
 
@@ -128,7 +131,7 @@ def update_google_sheets():
         
         if all_video_data:
             df = pd.DataFrame(all_video_data)
-            df = df.sort_values(by=['page', 'id'])
+            df = df.sort_values(by='page')  # Sort strictly by page
             values = [df.columns.values.tolist()] + df.values.tolist()
             
             # Save temp CSV for debugging
