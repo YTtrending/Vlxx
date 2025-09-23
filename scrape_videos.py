@@ -42,7 +42,7 @@ def scrape_page(page_num):
         return []
     url = HOME_URL if page_num == 1 else PAGE_URL.format(index=page_num)
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=15)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         print(f"Error fetching page {page_num}: {e}")
@@ -79,6 +79,7 @@ def scrape_page(page_num):
         }
         video_data.append(data)
         all_video_data.append(data)
+    print(f"Scraped page {page_num}: {len(video_data)} videos found")
     return video_data
 
 # Worker for pagination
@@ -217,7 +218,7 @@ def load_existing_data():
             print(f"Error loading {DATA_TXT}: {e}")
     return existing_data
 
-# Save data.txt as JSON, sorted by page and id
+# Save data.txt as JSON, sorted by id descending
 def save_data_txt():
     try:
         # Load existing data
@@ -229,14 +230,13 @@ def save_data_txt():
             if video['link'] in existing_dict:
                 existing_video = existing_dict[video['link']]
                 existing_video['page'] = video['page']  # Update page number
-                # Update other fields if detailed scraped
                 if video.get('detailed_scraped') == 'true':
                     existing_video.update({k: v for k, v in video.items() if k in EXPECTED_COLUMNS})
             else:
                 existing_dict[video['link']] = video
         
-        # Convert back to list and sort by page and id
-        sorted_data = sorted(existing_dict.values(), key=lambda x: (x.get('page', 0), x.get('id', '')))
+        # Convert back to list and sort by id descending
+        sorted_data = sorted(existing_dict.values(), key=lambda x: int(x.get('id', 0)), reverse=True)
         
         # Create DataFrame to handle columns
         df = pd.DataFrame(sorted_data)
@@ -274,15 +274,14 @@ def update_google_sheets():
                 if video['link'] in existing_dict:
                     existing_video = existing_dict[video['link']]
                     existing_video['page'] = video['page']  # Update page number
-                    # Update other fields if detailed scraped
                     if video.get('detailed_scraped') == 'true':
                         existing_video.update({k: v for k, v in video.items() if k in EXPECTED_COLUMNS})
                 else:
                     existing_dict[video['link']] = video
             
-            # Convert to DataFrame and sort by page and id
+            # Convert to DataFrame and sort by id descending
             df = pd.DataFrame(list(existing_dict.values()))
-            df = df.sort_values(by=['page', 'id'])
+            df = df.sort_values(by='id', key=lambda x: x.astype(int), ascending=False)
             
             # Add missing columns with 'N/A'
             for col in EXPECTED_COLUMNS:
@@ -297,70 +296,4 @@ def update_google_sheets():
            
             # Update Google Sheets
             values = [df.columns.values.tolist()] + df.values.tolist()
-            with sheets_lock:
-                sheet.clear()
-                sheet.update('A1', values)
-            print(f"Updated Google Sheets: {len(df)} rows across {df['page'].max()} pages")
-        else:
-            print("No data to update.")
-    except Exception as e:
-        print(f"Error updating Sheets: {e}")
-
-# Main function
-def main(num_threads=10, max_pages=200, detail_threads=15):
-    global stop_scraping
-    start_total = time.time()
-    
-    # Step 1: Scrape pagination (new videos)
-    for page_num in range(1, max_pages + 1):
-        page_queue.put(page_num)
-    threads = []
-    for _ in range(num_threads):
-        t = threading.Thread(target=worker)
-        t.start()
-        threads.append(t)
-   
-    for t in threads:
-        t.join()
-    
-    # Step 2: Add all new video links to detail queue
-    existing_links = set()
-    for video in all_video_data:
-        if video['link'] != 'N/A' and video['detailed_scraped'] is None:
-            if video['link'] not in existing_links:
-                detail_queue.put(video['link'])
-                existing_links.add(video['link'])
-    
-    # Step 3: Get pending details from Google Sheet (for old videos needing update)
-    pending_links = get_pending_details(existing_links)
-    for link in pending_links:
-        if link not in existing_links:
-            detail_queue.put(link)
-            existing_links.add(link)
-    
-    print(f"Total {detail_queue.qsize()} detail links to scrape")
-    
-    # Step 4: Scrape details in parallel
-    if not detail_queue.empty():
-        detail_threads_list = []
-        for _ in range(detail_threads):
-            t = threading.Thread(target=detail_worker)
-            t.start()
-            detail_threads_list.append(t)
-       
-        for t in detail_threads_list:
-            t.join()
-    else:
-        print("No detail links to scrape. Check if all_video_data is empty or all links already scraped.")
-    
-    elapsed_total = time.time() - start_total
-    print(f"Total time: {elapsed_total:.2f}s")
-    
-    if all_video_data:
-        save_data_txt()
-        update_google_sheets()
-    else:
-        print("No video data collected.")
-
-if __name__ == "__main__":
-    main(max_pages=1)  # Set to 1 for testing
+            withBeen locked by another process, please try again later.
