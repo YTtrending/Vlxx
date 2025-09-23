@@ -8,6 +8,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import os
+import json
 
 # Base URL templates
 HOME_URL = "https://vlxx.bz/"
@@ -18,8 +19,9 @@ SHEET_ID = '1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE'  # Replace with your G
 SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 CREDENTIALS_FILE = 'credentials.json'
 
-# Temp CSV for debugging (local to GitHub Actions)
-TEMP_CSV = 'temp_videos.csv'
+# Output files
+TEMP_CSV = 'temp_videos.csv'  # Local for debugging
+DATA_TXT = 'data.txt'  # JSON for web use, to be committed
 
 # Locks
 sheets_lock = threading.Lock()
@@ -46,7 +48,7 @@ def scrape_page(page_num):
     soup = BeautifulSoup(response.text, 'html.parser')
     items = soup.find_all('div', class_='video-item')
 
-    if not items:  # Stop immediately if no items
+    if not items:
         print(f"No data on page {page_num}, stopping.")
         stop_scraping = True
         return []
@@ -93,7 +95,16 @@ def worker():
             print(f"Scraped page {page_num} ({len(data)} videos) in {elapsed:.2f}s")
         
         page_queue.task_done()
-        time.sleep(0.5)  # Reduced delay for speed
+        time.sleep(0.5)
+
+# Save data to data.txt as JSON
+def save_data_txt():
+    try:
+        with open(DATA_TXT, 'w', encoding='utf-8') as f:
+            json.dump(all_video_data, f, ensure_ascii=False, indent=2)
+        print(f"Saved {DATA_TXT}: {len(all_video_data)} records")
+    except Exception as e:
+        print(f"Error saving {DATA_TXT}: {e}")
 
 # Update Google Sheets
 def update_google_sheets():
@@ -102,30 +113,43 @@ def update_google_sheets():
         return
 
     try:
+        with open(CREDENTIALS_FILE, 'r') as f:
+            creds_content = f.read()
+            try:
+                json.loads(creds_content)
+                print("credentials.json is valid JSON")
+            except json.JSONDecodeError as e:
+                print(f"Error: Invalid JSON in credentials.json: {e}")
+                return
+
         creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SHEET_ID).sheet1
         
         if all_video_data:
             df = pd.DataFrame(all_video_data)
-            df = df.sort_values(by=['page', 'id'])  # Sort for readability
+            df = df.sort_values(by=['page', 'id'])
             values = [df.columns.values.tolist()] + df.values.tolist()
-            
-            with sheets_lock:
-                sheet.clear()
-                sheet.update('A1', values)  # Write from A1
-            print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
             
             # Save temp CSV for debugging
             df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
             print(f"Saved temp CSV: {TEMP_CSV}")
+            
+            with sheets_lock:
+                sheet.clear()
+                sheet.update('A1', values)
+            print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
         else:
             print("No data to update.")
+    except gspread.exceptions.SpreadsheetNotFound:
+        print(f"Error: Sheet with ID {SHEET_ID} not found or inaccessible")
+    except gspread.exceptions.APIError as e:
+        print(f"Google Sheets API error: {e}")
     except Exception as e:
-        print(f"Error updating Sheets: {e}")
+        print(f"Unexpected error updating Sheets: {e}")
 
 # Main function
-def main(num_threads=10, max_pages=200):  # Optimized for ~100 pages
+def main(num_threads=10, max_pages=200):
     global stop_scraping
     start_total = time.time()
 
@@ -145,8 +169,8 @@ def main(num_threads=10, max_pages=200):  # Optimized for ~100 pages
     print(f"Total scrape time: {elapsed_total:.2f}s for up to {max_pages} pages")
 
     if all_video_data:
+        save_data_txt()  # Save JSON for web
         update_google_sheets()
 
 if __name__ == "__main__":
     main()
-
