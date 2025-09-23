@@ -74,8 +74,8 @@ def scrape_page(page_num):
             'link': link,
             'thumbnail': thumbnail,
             'ribbon': ribbon,
-            'detailed_scraped': None,  # Track if detailed scraped
-            'last_updated': 0  # Initial last updated
+            'detailed_scraped': None,
+            'last_updated': 0
         }
         video_data.append(data)
         all_video_data.append(data)
@@ -109,12 +109,18 @@ def scrape_detail(detail_link):
     soup = BeautifulSoup(response.text, 'html.parser')
     video_div = soup.find('div', id='video')
     if not video_div:
+        print(f"No video div found for {detail_link}")
         return None
     detail_data = {}
     detail_data['video_id'] = video_div.get('data-id', 'N/A')
-    # Get iframe src
-    iframe = soup.find('iframe', src=True)
+    
+    # Get iframe src from video-player
+    video_player = soup.find('div', class_='desktop video-player')
+    iframe = video_player.find('iframe', src=True) if video_player else None
     detail_data['iframe_src'] = iframe.get('src', 'N/A') if iframe else 'N/A'
+    if detail_data['iframe_src'] != 'N/A':
+        detail_data['iframe_src'] = urljoin("https://vlxx.bz", detail_data['iframe_src']) if not detail_data['iframe_src'].startswith('http') else detail_data['iframe_src']
+    
     # Stats
     stats_div = soup.find('div', class_='video-stats')
     if stats_div:
@@ -122,20 +128,24 @@ def scrape_detail(detail_link):
         detail_data['dislikes'] = stats_div.find('span', class_='dislikes').text.strip() if stats_div.find('span', class_='dislikes') else 'N/A'
         detail_data['rating'] = stats_div.find('span', class_='rating').text.strip() if stats_div.find('span', class_='rating') else 'N/A'
         detail_data['views'] = stats_div.find('span', class_='views').text.strip() if stats_div.find('span', class_='views') else 'N/A'
+    
     # Info
     info_div = soup.find('div', class_='video-info')
     if info_div:
         detail_data['video_code'] = info_div.find('span', class_='video-code').text.strip() if info_div.find('span', class_='video-code') else 'N/A'
         detail_data['video_link'] = info_div.find('span', class_='video-link').text.strip() if info_div.find('span', class_='video-link') else 'N/A'
+    
     # Description
     desc_div = soup.find('div', class_='video-description')
     detail_data['description'] = desc_div.text.strip()[:500] + '...' if desc_div and len(desc_div.text.strip()) > 500 else (desc_div.text.strip() if desc_div else 'N/A')
+    
     # Tags
     actress_div = soup.find('div', class_='actress-tag')
     detail_data['actress'] = actress_div.find('a').get('title', 'N/A') if actress_div and actress_div.find('a') else 'N/A'
     category_div = soup.find('div', class_='category-tag')
     categories = [a.get('title', '') for a in category_div.find_all('a')] if category_div else []
     detail_data['categories'] = '; '.join(categories) if categories else 'N/A'
+    
     # Update timestamp
     detail_data['last_updated'] = time.time()
     return detail_data
@@ -190,7 +200,7 @@ def get_pending_details():
         print(f"Error getting pending: {e}")
         return []
 
-# Load existing data from data.txt for updating page numbers
+# Load existing data from data.txt
 def load_existing_data():
     existing_data = []
     if os.path.exists(DATA_TXT):
