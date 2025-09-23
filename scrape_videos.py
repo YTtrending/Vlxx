@@ -98,19 +98,25 @@ def worker():
         page_queue.task_done()
         time.sleep(0.5)
 
-# Scrape detail page
-def scrape_detail(detail_link):
-    try:
-        response = requests.get(detail_link, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching detail {detail_link}: {e}")
-        return None
+# Scrape detail page with retry logic
+def scrape_detail(detail_link, retries=3):
+    for attempt in range(retries):
+        try:
+            response = requests.get(detail_link, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=15)
+            response.raise_for_status()
+            break
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching detail {detail_link} (attempt {attempt + 1}/{retries}): {e}")
+            if attempt + 1 == retries:
+                return None
+            time.sleep(2)
+    
     soup = BeautifulSoup(response.text, 'html.parser')
     video_div = soup.find('div', id='video')
     if not video_div:
         print(f"No video div found for {detail_link}")
         return None
+    
     detail_data = {}
     detail_data['video_id'] = video_div.get('data-id', 'N/A')
     
@@ -176,7 +182,8 @@ def detail_worker():
         time.sleep(1)  # Delay to avoid rate limiting
 
 # Get pending details from Sheet
-def get_pending_details():
+def get_pending_details(existing_links):
+    pending = []
     try:
         creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
         client = gspread.authorize(creds)
@@ -184,7 +191,6 @@ def get_pending_details():
         records = sheet.get_all_records()
         current_time = time.time()
         WEEK_SECONDS = 7 * 86400
-        pending = []
         for row in records:
             detailed_scraped = row.get('detailed_scraped', '')
             last_updated = row.get('last_updated', 0)
@@ -193,12 +199,12 @@ def get_pending_details():
             except ValueError:
                 last_updated = 0
             if detailed_scraped != 'true' or (detailed_scraped == 'true' and (current_time - last_updated) > WEEK_SECONDS):
-                pending.append(row['link'])
-        print(f"Found {len(pending)} pending details to scrape")
-        return pending
+                if row['link'] not in existing_links:  # Avoid duplicates
+                    pending.append(row['link'])
+        print(f"Found {len(pending)} pending details from Google Sheet")
     except Exception as e:
-        print(f"Error getting pending: {e}")
-        return []
+        print(f"Error getting pending from Google Sheet: {e}")
+    return pending
 
 # Load existing data from data.txt
 def load_existing_data():
@@ -317,20 +323,35 @@ def main(num_threads=10, max_pages=200, detail_threads=15):
     for t in threads:
         t.join()
     
-    # Step 2: Get pending details (new + old chưa scrape or old >7 days)
-    pending_links = get_pending_details()
-    for link in pending_links:
-        detail_queue.put(link)
+    # Step 2: Add all new video links to detail queue
+    existing_links = set()
+    for video in all_video_data:
+        if video['link'] != 'N/A' and video['detailed_scraped'] is None:
+            if video['link'] not in existing_links:
+                detail_queue.put(video['link'])
+                existing_links.add(video['link'])
     
-    # Step 3: Scrape details song song
-    detail_threads_list = []
-    for _ in range(detail_threads):
-        t = threading.Thread(target=detail_worker)
-        t.start()
-        detail_threads_list.append(t)
-   
-    for t in detail_threads_list:
-        t.join()
+    # Step 3: Get pending details from Google Sheet (for old videos needing update)
+    pending_links = get_pending_details(existing_links)
+    for link in pending_links:
+        if link not in existing_links:
+            detail_queue.put(link)
+            existing_links.add(link)
+    
+    print(f"Total {detail_queue.qsize()} detail links to scrape")
+    
+    # Step 4: Scrape details in parallel
+    if not detail_queue.empty():
+        detail_threads_list = []
+        for _ in range(detail_threads):
+            t = threading.Thread(target=detail_worker)
+            t.start()
+            detail_threads_list.append(t)
+       
+        for t in detail_threads_list:
+            t.join()
+    else:
+        print("No detail links to scrape. Check if all_video_data is empty or all links already scraped.")
     
     elapsed_total = time.time() - start_total
     print(f"Total time: {elapsed_total:.2f}s")
@@ -338,6 +359,8 @@ def main(num_threads=10, max_pages=200, detail_threads=15):
     if all_video_data:
         save_data_txt()
         update_google_sheets()
+    else:
+        print("No video data collected.")
 
 if __name__ == "__main__":
-    main()
+    main(max_pages=1)  # Set to 1 for testing
