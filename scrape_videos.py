@@ -9,7 +9,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import os
 import json
-import uuid
 
 # Base URL templates
 HOME_URL = "https://vlxx.bz/"
@@ -28,6 +27,13 @@ page_queue = queue.Queue()
 detail_queue = queue.Queue()
 stop_scraping = False
 all_video_data = []
+# Expected columns
+EXPECTED_COLUMNS = [
+    'page', 'id', 'title', 'link', 'thumbnail', 'ribbon',
+    'detailed_scraped', 'iframe_src', 'likes', 'dislikes', 'rating',
+    'views', 'video_code', 'video_link', 'description', 'actress',
+    'categories', 'last_updated'
+]
 
 # Scrape pagination page
 def scrape_page(page_num):
@@ -68,7 +74,8 @@ def scrape_page(page_num):
             'link': link,
             'thumbnail': thumbnail,
             'ribbon': ribbon,
-            'detailed_scraped': None  # Track if detailed scraped
+            'detailed_scraped': None,  # Track if detailed scraped
+            'last_updated': 0  # Initial last updated
         }
         video_data.append(data)
         all_video_data.append(data)
@@ -129,6 +136,8 @@ def scrape_detail(detail_link):
     category_div = soup.find('div', class_='category-tag')
     categories = [a.get('title', '') for a in category_div.find_all('a')] if category_div else []
     detail_data['categories'] = '; '.join(categories) if categories else 'N/A'
+    # Update timestamp
+    detail_data['last_updated'] = time.time()
     return detail_data
 
 # Worker for details
@@ -163,7 +172,18 @@ def get_pending_details():
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SHEET_ID).sheet1
         records = sheet.get_all_records()
-        pending = [row['link'] for row in records if row.get('detailed_scraped', '') != 'true']
+        current_time = time.time()
+        WEEK_SECONDS = 7 * 86400
+        pending = []
+        for row in records:
+            detailed_scraped = row.get('detailed_scraped', '')
+            last_updated = row.get('last_updated', 0)
+            try:
+                last_updated = float(last_updated)
+            except ValueError:
+                last_updated = 0
+            if detailed_scraped != 'true' or (detailed_scraped == 'true' and (current_time - last_updated) > WEEK_SECONDS):
+                pending.append(row['link'])
         print(f"Found {len(pending)} pending details to scrape")
         return pending
     except Exception as e:
@@ -191,12 +211,26 @@ def save_data_txt():
         # Update page numbers for existing links, add new entries
         for video in all_video_data:
             if video['link'] in existing_dict:
-                existing_dict[video['link']]['page'] = video['page']  # Update page number
+                existing_video = existing_dict[video['link']]
+                existing_video['page'] = video['page']  # Update page number
+                # Update other fields if detailed scraped
+                if video.get('detailed_scraped') == 'true':
+                    existing_video.update({k: v for k, v in video.items() if k in EXPECTED_COLUMNS})
             else:
                 existing_dict[video['link']] = video
         
         # Convert back to list and sort by page and id
-        sorted_data = sorted(existing_dict.values(), key=lambda x: (x['page'], x['id']))
+        sorted_data = sorted(existing_dict.values(), key=lambda x: (x.get('page', 0), x.get('id', '')))
+        
+        # Create DataFrame to handle columns
+        df = pd.DataFrame(sorted_data)
+        # Add missing columns with 'N/A'
+        for col in EXPECTED_COLUMNS:
+            if col not in df.columns:
+                df[col] = 'N/A'
+        # Remove extra columns
+        df = df[EXPECTED_COLUMNS]
+        sorted_data = df.to_dict('records')
         
         with open(DATA_TXT, 'w', encoding='utf-8') as f:
             json.dump(sorted_data, f, ensure_ascii=False, indent=2)
@@ -222,13 +256,24 @@ def update_google_sheets():
             # Update page numbers for existing links, add new entries
             for video in all_video_data:
                 if video['link'] in existing_dict:
-                    existing_dict[video['link']]['page'] = video['page']  # Update page number
+                    existing_video = existing_dict[video['link']]
+                    existing_video['page'] = video['page']  # Update page number
+                    # Update other fields if detailed scraped
+                    if video.get('detailed_scraped') == 'true':
+                        existing_video.update({k: v for k, v in video.items() if k in EXPECTED_COLUMNS})
                 else:
                     existing_dict[video['link']] = video
             
             # Convert to DataFrame and sort by page and id
             df = pd.DataFrame(list(existing_dict.values()))
             df = df.sort_values(by=['page', 'id'])
+            
+            # Add missing columns with 'N/A'
+            for col in EXPECTED_COLUMNS:
+                if col not in df.columns:
+                    df[col] = 'N/A'
+            # Remove extra columns
+            df = df[EXPECTED_COLUMNS]
             
             # Save to temp CSV
             df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
@@ -262,7 +307,7 @@ def main(num_threads=10, max_pages=200, detail_threads=15):
     for t in threads:
         t.join()
     
-    # Step 2: Get pending details (new + old chưa scrape)
+    # Step 2: Get pending details (new + old chưa scrape or old >7 days)
     pending_links = get_pending_details()
     for link in pending_links:
         detail_queue.put(link)
