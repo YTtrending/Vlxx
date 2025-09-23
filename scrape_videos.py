@@ -7,29 +7,29 @@ from urllib.parse import urljoin
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
+import os
 
 # Base URL templates
 HOME_URL = "https://vlxx.bz/"
 PAGE_URL = "https://vlxx.bz/new/{index}/"
 
 # Google Sheets config
-SHEET_ID = '1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE'  # Replace with your Google Sheet ID
+SHEET_ID = 'YOUR_SHEET_ID_HERE'  # Replace with your Google Sheet ID
 SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-CREDENTIALS_FILE = 'credentials.json'  # Written by GitHub Actions from secret
+CREDENTIALS_FILE = 'credentials.json'
 
-# Lock for thread-safe operations
+# Temp CSV for debugging (local to GitHub Actions)
+TEMP_CSV = 'temp_videos.csv'
+
+# Locks
 sheets_lock = threading.Lock()
 
-# Queue for pages to scrape
+# Queue and flag
 page_queue = queue.Queue()
-
-# Flag to stop scraping
 stop_scraping = False
-
-# All data collected
 all_video_data = []
 
-# Function to scrape a single page
+# Scrape a single page
 def scrape_page(page_num):
     global stop_scraping
     if stop_scraping:
@@ -46,12 +46,9 @@ def scrape_page(page_num):
     soup = BeautifulSoup(response.text, 'html.parser')
     items = soup.find_all('div', class_='video-item')
 
-    if not items and page_num > 1000:
-        print(f"No data on page {page_num}, likely reached end.")
+    if not items:  # Stop immediately if no items
+        print(f"No data on page {page_num}, stopping.")
         stop_scraping = True
-        return []
-    elif not items:
-        print(f"No data on page {page_num}, but continuing.")
         return []
 
     video_data = []
@@ -81,7 +78,7 @@ def scrape_page(page_num):
 
     return video_data
 
-# Worker threads
+# Worker thread
 def worker():
     while not stop_scraping:
         try:
@@ -89,33 +86,48 @@ def worker():
         except queue.Empty:
             break
         
+        start_time = time.time()
         data = scrape_page(page_num)
+        elapsed = time.time() - start_time
         if data:
-            print(f"Scraped page {page_num} ({len(data)} videos)")
+            print(f"Scraped page {page_num} ({len(data)} videos) in {elapsed:.2f}s")
         
         page_queue.task_done()
-        time.sleep(1)
+        time.sleep(0.5)  # Reduced delay for speed
 
-# Function to update Google Sheets
+# Update Google Sheets
 def update_google_sheets():
+    if not os.path.exists(CREDENTIALS_FILE):
+        print("Error: credentials.json not found!")
+        return
+
     try:
         creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SHEET_ID).sheet1
         
-        df = pd.DataFrame(all_video_data)
-        values = [df.columns.values.tolist()] + df.values.tolist()
-        
-        with sheets_lock:
-            sheet.clear()
-            sheet.update('A1', values)
-        print("Updated Google Sheets successfully!")
+        if all_video_data:
+            df = pd.DataFrame(all_video_data)
+            df = df.sort_values(by=['page', 'id'])  # Sort for readability
+            values = [df.columns.values.tolist()] + df.values.tolist()
+            
+            with sheets_lock:
+                sheet.clear()
+                sheet.update('A1', values)  # Write from A1
+            print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
+            
+            # Save temp CSV for debugging
+            df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
+            print(f"Saved temp CSV: {TEMP_CSV}")
+        else:
+            print("No data to update.")
     except Exception as e:
         print(f"Error updating Sheets: {e}")
 
 # Main function
-def main(num_threads=5, max_pages=10000):
+def main(num_threads=10, max_pages=200):  # Optimized for ~100 pages
     global stop_scraping
+    start_total = time.time()
 
     for page_num in range(1, max_pages + 1):
         page_queue.put(page_num)
@@ -129,10 +141,11 @@ def main(num_threads=5, max_pages=10000):
     for t in threads:
         t.join()
 
+    elapsed_total = time.time() - start_total
+    print(f"Total scrape time: {elapsed_total:.2f}s for up to {max_pages} pages")
+
     if all_video_data:
         update_google_sheets()
-    else:
-        print("No data to update.")
 
 if __name__ == "__main__":
-    main(num_threads=5, max_pages=10000)
+    main()
