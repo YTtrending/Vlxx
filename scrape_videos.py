@@ -15,23 +15,24 @@ HOME_URL = "https://vlxx.bz/"
 PAGE_URL = "https://vlxx.bz/new/{index}/"
 
 # Google Sheets config
-SHEET_ID = '1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE'  # Replace with your Google Sheet ID
+SHEET_ID = '1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE'  # Your Sheet ID
 SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 CREDENTIALS_FILE = 'credentials.json'
 
 # Output files
-TEMP_CSV = 'temp_videos.csv'  # Local for debugging
-DATA_TXT = 'data.txt'  # JSON for web use, to be committed
+TEMP_CSV = 'temp_videos.csv'
+DATA_TXT = 'data.txt'
 
 # Locks
 sheets_lock = threading.Lock()
 
 # Queue and flag
 page_queue = queue.Queue()
+detail_queue = queue.Queue()
 stop_scraping = False
 all_video_data = []
 
-# Scrape a single page
+# Scrape pagination page (giống cũ, nhưng thêm cột detailed_scraped=None)
 def scrape_page(page_num):
     global stop_scraping
     if stop_scraping:
@@ -73,14 +74,15 @@ def scrape_page(page_num):
             'title': title,
             'link': link,
             'thumbnail': thumbnail,
-            'ribbon': ribbon
+            'ribbon': ribbon,
+            'detailed_scraped': None  # New: Track if detailed scraped
         }
         video_data.append(data)
         all_video_data.append(data)
 
     return video_data
 
-# Worker thread
+# Worker for pagination
 def worker():
     while not stop_scraping:
         try:
@@ -97,11 +99,105 @@ def worker():
         page_queue.task_done()
         time.sleep(0.5)
 
-# Save data to data.txt as JSON, sorted by page
+# Scrape detail page
+def scrape_detail(detail_link):
+    try:
+        response = requests.get(detail_link, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching detail {detail_link}: {e}")
+        return None
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    video_div = soup.find('div', id='video')
+    if not video_div:
+        return None
+
+    detail_data = {}
+    detail_data['video_id'] = video_div.get('data-id', 'N/A')
+    detail_data['data_sv'] = video_div.get('data-sv', 'N/A')
+
+    # Servers
+    servers = soup.find_all('li', class_='video-server')
+    detail_data['server_count'] = len(servers)
+    if servers:
+        iframe = soup.find('iframe', src=True)
+        detail_data['server1_embed'] = iframe.get('src') if iframe else 'N/A'
+        # Server2: Giả sử pattern, hoặc skip nếu phức tạp
+        detail_data['server2_embed'] = 'N/A'  # Cần JS nếu dynamic
+
+    # Stats
+    stats_div = soup.find('div', class_='video-stats')
+    if stats_div:
+        detail_data['likes'] = stats_div.find('span', class_='likes').text.strip() if stats_div.find('span', class_='likes') else 'N/A'
+        detail_data['dislikes'] = stats_div.find('span', class_='dislikes').text.strip() if stats_div.find('span', class_='dislikes') else 'N/A'
+        detail_data['rating'] = stats_div.find('span', class_='rating').text.strip() if stats_div.find('span', class_='rating') else 'N/A'
+        detail_data['views'] = stats_div.find('span', class_='views').text.strip() if stats_div.find('span', class_='views') else 'N/A'
+
+    # Info
+    info_div = soup.find('div', class_='video-info')
+    if info_div:
+        detail_data['video_code'] = info_div.find('span', class_='video-code').text.strip() if info_div.find('span', class_='video-code') else 'N/A'
+        detail_data['video_link'] = info_div.find('span', class_='video-link').text.strip() if info_div.find('span', class_='video-link') else 'N/A'
+
+    # Description
+    desc_div = soup.find('div', class_='video-description')
+    detail_data['description'] = desc_div.text.strip()[:500] + '...' if desc_div and len(desc_div.text.strip()) > 500 else (desc_div.text.strip() if desc_div else 'N/A')
+
+    # Tags
+    actress_div = soup.find('div', class_='actress-tag')
+    detail_data['actress'] = actress_div.find('a').get('title', 'N/A') if actress_div and actress_div.find('a') else 'N/A'
+
+    category_div = soup.find('div', class_='category-tag')
+    categories = [a.get('title', '') for a in category_div.find_all('a')] if category_div else []
+    detail_data['categories'] = '; '.join(categories) if categories else 'N/A'
+
+    return detail_data
+
+# Worker for details
+def detail_worker():
+    while True:
+        try:
+            detail_link = detail_queue.get_nowait()
+        except queue.Empty:
+            break
+        
+        start_time = time.time()
+        detail_data = scrape_detail(detail_link)
+        elapsed = time.time() - start_time
+        if detail_data:
+            print(f"Scraped detail for {detail_link} in {elapsed:.2f}s")
+            # Merge into all_video_data by id
+            for video in all_video_data:
+                if video['id'] == detail_data['video_id']:
+                    video.update(detail_data)
+                    video['detailed_scraped'] = 'true'
+                    break
+        else:
+            print(f"No detail data for {detail_link}")
+        
+        detail_queue.task_done()
+        time.sleep(1)  # Delay cho detail để tránh block
+
+# Get pending details from Sheet
+def get_pending_details():
+    try:
+        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        records = sheet.get_all_records()
+        pending = [row['link'] for row in records if row.get('detailed_scraped', '') != 'true']
+        print(f"Found {len(pending)} pending details to scrape")
+        return pending
+    except Exception as e:
+        print(f"Error getting pending: {e}")
+        return []
+
+# Save data.txt as JSON, sorted by page
 def save_data_txt():
     try:
         df = pd.DataFrame(all_video_data)
-        df = df.sort_values(by='page')  # Sort strictly by page
+        df = df.sort_values(by='page')
         sorted_data = df.to_dict('records')
         with open(DATA_TXT, 'w', encoding='utf-8') as f:
             json.dump(sorted_data, f, ensure_ascii=False, indent=2)
@@ -109,32 +205,23 @@ def save_data_txt():
     except Exception as e:
         print(f"Error saving {DATA_TXT}: {e}")
 
-# Update Google Sheets
+# Update Google Sheets (mở rộng cột)
 def update_google_sheets():
     if not os.path.exists(CREDENTIALS_FILE):
         print("Error: credentials.json not found!")
         return
 
     try:
-        with open(CREDENTIALS_FILE, 'r') as f:
-            creds_content = f.read()
-            try:
-                json.loads(creds_content)
-                print("credentials.json is valid JSON")
-            except json.JSONDecodeError as e:
-                print(f"Error: Invalid JSON in credentials.json: {e}")
-                return
-
         creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SHEET_ID).sheet1
         
         if all_video_data:
             df = pd.DataFrame(all_video_data)
-            df = df.sort_values(by='page')  # Sort strictly by page
+            df = df.sort_values(by='page')
+            # Cột mới: likes, dislikes, rating, views, video_code, description, actress, categories, detailed_scraped
             values = [df.columns.values.tolist()] + df.values.tolist()
             
-            # Save temp CSV for debugging
             df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
             print(f"Saved temp CSV: {TEMP_CSV}")
             
@@ -144,18 +231,15 @@ def update_google_sheets():
             print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
         else:
             print("No data to update.")
-    except gspread.exceptions.SpreadsheetNotFound:
-        print(f"Error: Sheet with ID {SHEET_ID} not found or inaccessible")
-    except gspread.exceptions.APIError as e:
-        print(f"Google Sheets API error: {e}")
     except Exception as e:
-        print(f"Unexpected error updating Sheets: {e}")
+        print(f"Error updating Sheets: {e}")
 
 # Main function
-def main(num_threads=10, max_pages=200):
+def main(num_threads=10, max_pages=200, detail_threads=5):
     global stop_scraping
     start_total = time.time()
 
+    # Step 1: Scrape pagination (new videos)
     for page_num in range(1, max_pages + 1):
         page_queue.put(page_num)
 
@@ -168,11 +252,26 @@ def main(num_threads=10, max_pages=200):
     for t in threads:
         t.join()
 
+    # Step 2: Get pending details (new + old chưa scrape)
+    pending_links = get_pending_details()
+    for link in pending_links:
+        detail_queue.put(link)
+
+    # Step 3: Scrape details song song
+    detail_threads_list = []
+    for _ in range(detail_threads):
+        t = threading.Thread(target=detail_worker)
+        t.start()
+        detail_threads_list.append(t)
+    
+    for t in detail_threads_list:
+        t.join()
+
     elapsed_total = time.time() - start_total
-    print(f"Total scrape time: {elapsed_total:.2f}s for up to {max_pages} pages")
+    print(f"Total time: {elapsed_total:.2f}s")
 
     if all_video_data:
-        save_data_txt()  # Save JSON for web
+        save_data_txt()
         update_google_sheets()
 
 if __name__ == "__main__":
