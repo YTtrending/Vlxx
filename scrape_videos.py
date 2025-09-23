@@ -14,7 +14,7 @@ HOME_URL = "https://vlxx.bz/"
 PAGE_URL = "https://vlxx.bz/new/{index}/"
 
 # Google Sheets config
-SHEET_ID = 'YOUR_SHEET_ID_HERE'  # Replace with your Google Sheet ID
+SHEET_ID = '1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE'  # Replace with your Google Sheet ID
 SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 CREDENTIALS_FILE = 'credentials.json'
 
@@ -149,3 +149,4 @@ def main(num_threads=10, max_pages=200):  # Optimized for ~100 pages
 
 if __name__ == "__main__":
     main()
+
