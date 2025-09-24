@@ -10,112 +10,285 @@ import pandas as pd
 import os
 import json
 
-# ... (giữ config cũ: HOME_URL, PAGE_URL, SHEET_ID, etc.)
+# Base URL templates
+HOME_URL = "https://vlxx.bz/"
+PAGE_URL = "https://vlxx.bz/new/{index}/"
 
-all_video_data = []  # Sẽ chứa {list_data + detail_data}
+# Google Sheets config
+SHEET_ID = '1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE'  # Your Sheet ID
+SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+CREDENTIALS_FILE = 'credentials.json'
 
-def scrape_detail_page(url):
-    """Scrape chi tiết từ link video"""
+# Output files
+TEMP_CSV = 'temp_videos.csv'
+DATA_TXT = 'data.txt'
+
+# Locks
+sheets_lock = threading.Lock()
+
+# Queue and flag
+page_queue = queue.Queue()
+detail_queue = queue.Queue()
+stop_scraping = False
+all_video_data = []
+
+# Scrape pagination page
+def scrape_page(page_num):
+    global stop_scraping
+    if stop_scraping:
+        return []
+
+    url = HOME_URL if page_num == 1 else PAGE_URL.format(index=page_num)
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 ...'}, timeout=10)
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        detail = {}
-        video_div = soup.find('div', id='video')
-        if video_div:
-            detail['video_id'] = video_div.get('data-id', 'N/A')
-            detail['sv'] = video_div.get('data-sv', 'N/A')
-        
-        iframe = soup.find('iframe')
-        detail['embed_url'] = iframe.get('src', 'N/A') if iframe else 'N/A'
-        
-        # Servers (simple count or list)
-        servers = [li.get('id', '').replace('server', '') for li in soup.find_all('li', class_='video-server')]
-        detail['servers'] = ','.join(servers) if servers else 'N/A'
-        
-        # Stats
-        stats_div = soup.find('div', class_='video-stats')
-        if stats_div:
-            detail['likes'] = stats_div.find('span', class_='likes').text.strip() if stats_div.find('span', class_='likes') else 'N/A'
-            detail['dislikes'] = stats_div.find('span', class_='dislikes').text.strip() if stats_div.find('span', class_='dislikes') else 'N/A'
-            detail['rating'] = stats_div.find('span', class_='rating').text.strip() if stats_div.find('span', class_='rating') else 'N/A'
-            detail['views'] = stats_div.find('span', class_='views').text.strip() if stats_div.find('span', class_='views') else 'N/A'
-        
-        # Video info
-        info_div = soup.find('div', class_='video-info')
-        if info_div:
-            detail['video_code'] = info_div.find('span', class_='video-code').text.strip() if info_div.find('span', class_='video-code') else 'N/A'
-            detail['video_link'] = info_div.find('span', class_='video-link').text.strip() if info_div.find('span', class_='video-link') else 'N/A'
-        
-        # Description
-        desc_div = soup.find('div', class_='video-description')
-        detail['description'] = desc_div.text.strip()[:1000] if desc_div else 'N/A'  # Cắt ngắn
-        
-        # Tags
-        actress_div = soup.find('div', class_='actress-tag')
-        detail['actress'] = ', '.join([a.get('title', '') for a in actress_div.find_all('a')]) if actress_div else 'N/A'
-        
-        category_div = soup.find('div', class_='category-tag')
-        detail['categories'] = ', '.join([a.get('title', '') for a in category_div.find_all('a')]) if category_div else 'N/A'
-        
-        return detail
-    except Exception as e:
-        print(f"Error scraping detail {url}: {e}")
-        return {}
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching page {page_num}: {e}")
+        return []
 
-def scrape_page(page_num):  # Giữ nguyên, nhưng return list_data với 'link' để scrape sau
-    # ... (code scrape list cũ)
-    # Trong loop for item:
-    data = { ... }  # Như cũ
-    data['detailed_scraped'] = False  # Mặc định chưa scrape chi tiết
-    video_data.append(data)
-    all_video_data.append(data)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    items = soup.find_all('div', class_='video-item')
+
+    if not items:
+        print(f"No data on page {page_num}, stopping.")
+        stop_scraping = True
+        return []
+
+    video_data = []
+    for item in items:
+        video_id = item.get('id', '').replace('video-', '') if item.get('id') else 'N/A'
+        a_tag = item.find('a')
+        title = a_tag.get('title', 'N/A') if a_tag else 'N/A'
+        link = urljoin("https://vlxx.bz", a_tag.get('href', 'N/A')) if a_tag else 'N/A'
+        
+        img_tag = item.find('img', class_='video-image')
+        thumbnail = img_tag.get('data-original', img_tag.get('src', 'N/A')) if img_tag else 'N/A'
+        thumbnail = urljoin("https://vlxx.bz", thumbnail) if thumbnail != 'N/A' and not thumbnail.startswith('http') else thumbnail
+        
+        ribbon_div = item.find('div', class_='ribbon')
+        ribbon = ribbon_div.text.strip() if ribbon_div else 'N/A'
+        
+        data = {
+            'page': page_num,
+            'id': video_id,
+            'title': title,
+            'link': link,
+            'thumbnail': thumbnail,
+            'ribbon': ribbon,
+            'detailed_scraped': None  # Track if detailed scraped
+        }
+        video_data.append(data)
+        all_video_data.append(data)
+
     return video_data
 
-# Trong main, sau scrape list:
-def update_details_from_sheets():
-    """Lấy existing IDs từ Sheets để chỉ scrape mới"""
-    try:
-        creds = ...  # Auth như cũ
-        sheet = client.open_by_key(SHEET_ID).sheet1
-        existing = sheet.get_all_records()
-        existing_ids = {row.get('id', '') for row in existing if row.get('detailed_scraped', False) == 'True'}
-        return existing_ids
-    except:
-        return set()
-
-# Sau scrape list, enqueue chi tiết cho new IDs
-existing_ids = update_details_from_sheets()
-new_links = [d['link'] for d in all_video_data if d['id'] not in existing_ids]
-
-detail_queue = queue.Queue()
-for link in new_links:
-    detail_queue.put(link)
-
-def detail_worker():
-    while True:
+# Worker for pagination
+def worker():
+    while not stop_scraping:
         try:
-            link = detail_queue.get_nowait()
-            detail = scrape_detail_page(link)
-            if detail:
-                # Merge vào all_video_data dựa trên id
-                for vid in all_video_data:
-                    if vid['id'] == detail['video_id']:
-                        vid.update(detail)
-                        vid['detailed_scraped'] = True
+            page_num = page_queue.get_nowait()
+        except queue.Empty:
+            break
+        
+        start_time = time.time()
+        data = scrape_page(page_num)
+        elapsed = time.time() - start_time
+        if data:
+            print(f"Scraped page {page_num} ({len(data)} videos) in {elapsed:.2f}s")
+        
+        page_queue.task_done()
+        time.sleep(0.5)
+
+# Scrape detail page
+def scrape_detail(detail_link):
+    try:
+        response = requests.get(detail_link, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching detail {detail_link}: {e}")
+        return None
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    video_div = soup.find('div', id='video')
+    if not video_div:
+        return None
+
+    detail_data = {}
+    detail_data['video_id'] = video_div.get('data-id', 'N/A')
+    detail_data['data_sv'] = video_div.get('data-sv', 'N/A')
+
+    # Servers
+    servers = soup.find_all('li', class_='video-server')
+    detail_data['server_count'] = len(servers)
+    if servers:
+        iframe = soup.find('iframe', src=True)
+        detail_data['server1_embed'] = iframe.get('src') if iframe else 'N/A'
+        detail_data['server2_embed'] = 'N/A'  # Placeholder, as server2 may require JS
+
+    # Stats
+    stats_div = soup.find('div', class_='video-stats')
+    if stats_div:
+        detail_data['likes'] = stats_div.find('span', class_='likes').text.strip() if stats_div.find('span', class_='likes') else 'N/A'
+        detail_data['dislikes'] = stats_div.find('span', class_='dislikes').text.strip() if stats_div.find('span', class_='dislikes') else 'N/A'
+        detail_data['rating'] = stats_div.find('span', class_='rating').text.strip() if stats_div.find('span', class_='rating') else 'N/A'
+        detail_data['views'] = stats_div.find('span', class_='views').text.strip() if stats_div.find('span', class_='views') else 'N/A'
+
+    # Info
+    info_div = soup.find('div', class_='video-info')
+    if info_div:
+        detail_data['video_code'] = info_div.find('span', class_='video-code').text.strip() if info_div.find('span', class_='video-code') else 'N/A'
+        detail_data['video_link'] = info_div.find('span', class_='video-link').text.strip() if info_div.find('span', class_='video-link') else 'N/A'
+
+    # Description
+    desc_div = soup.find('div', class_='video-description')
+    detail_data['description'] = desc_div.text.strip()[:500] + '...' if desc_div and len(desc_div.text.strip()) > 500 else (desc_div.text.strip() if desc_div else 'N/A')
+
+    # Tags
+    actress_div = soup.find('div', class_='actress-tag')
+    detail_data['actress'] = actress_div.find('a').get('title', 'N/A') if actress_div and actress_div.find('a') else 'N/A'
+
+    category_div = soup.find('div', class_='category-tag')
+    categories = [a.get('title', '') for a in category_div.find_all('a')] if category_div else []
+    detail_data['categories'] = '; '.join(categories) if categories else 'N/A'
+
+    return detail_data
+
+# Worker for details
+def detail_worker():
+    while not stop_scraping:
+        try:
+            detail_link = detail_queue.get_nowait()
+        except queue.Empty:
+            break
+        
+        start_time = time.time()
+        detail_data = scrape_detail(detail_link)
+        elapsed = time.time() - start_time
+        if detail_data:
+            print(f"Scraped detail for {detail_link} in {elapsed:.2f}s")
+            # Merge into all_video_data by id
+            with sheets_lock:  # Ensure thread-safe access to all_video_data
+                for video in all_video_data:
+                    if video['id'] == detail_data['video_id']:
+                        video.update(detail_data)
+                        video['detailed_scraped'] = 'true'
                         break
+        else:
+            print(f"No detail data for {detail_link}")
+        
+        detail_queue.task_done()
+        time.sleep(1)  # Delay to avoid overwhelming the server
+
+# Get pending details from Sheet
+def get_pending_details():
+    try:
+        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        records = sheet.get_all_records()
+        pending = [row['link'] for row in records if row.get('detailed_scraped', '') != 'true']
+        print(f"Found {len(pending)} pending details to scrape")
+        return pending
+    except Exception as e:
+        print(f"Error getting pending: {e}")
+        return []
+
+# Save data.txt as JSON, sorted by page
+def save_data_txt():
+    try:
+        df = pd.DataFrame(all_video_data)
+        df = df.sort_values(by='page')
+        sorted_data = df.to_dict('records')
+        with open(DATA_TXT, 'w', encoding='utf-8') as f:
+            json.dump(sorted_data, f, ensure_ascii=False, indent=2)
+        print(f"Saved {DATA_TXT}: {len(sorted_data)} records")
+    except Exception as e:
+        print(f"Error saving {DATA_TXT}: {e}")
+
+# Update Google Sheets
+def update_google_sheets():
+    if not os.path.exists(CREDENTIALS_FILE):
+        print("Error: credentials.json not found!")
+        return
+
+    try:
+        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        
+        if all_video_data:
+            df = pd.DataFrame(all_video_data)
+            df = df.sort_values(by='page')
+            values = [df.columns.values.tolist()] + df.values.tolist()
+            
+            df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
+            print(f"Saved temp CSV: {TEMP_CSV}")
+            
+            with sheets_lock:
+                sheet.clear()
+                sheet.update('A1', values)
+            print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
+        else:
+            print("No data to update.")
+    except Exception as e:
+        print(f"Error updating Sheets: {e}")
+
+# Main function
+def main(num_threads=10, max_pages=200, detail_threads=5):
+    global stop_scraping
+    start_total = time.time()
+
+    # Step 1: Scrape pagination
+    for page_num in range(1, max_pages + 1):
+        page_queue.put(page_num)
+
+    threads = []
+    for _ in range(num_threads):
+        t = threading.Thread(target=worker)
+        t.start()
+        threads.append(t)
+    
+    for t in threads:
+        t.join()
+
+    # Step 2: Get pending details (new + old unscraped)
+    pending_links = get_pending_details()
+    for video in all_video_data:
+        if video['detailed_scraped'] != 'true' and video['link'] != 'N/A':
+            pending_links.append(video['link'])
+    
+    # Add unique pending links to queue
+    pending_links = list(set(pending_links))  # Remove duplicates
+    for link in pending_links:
+        detail_queue.put(link)
+
+    print(f"Total detail links to scrape: {len(pending_links)}")
+
+    # Step 3: Scrape details with multiple threads
+    detail_threads_list = []
+    for _ in range(min(detail_threads, len(pending_links))):  # Avoid unnecessary threads
+        t = threading.Thread(target=detail_worker)
+        t.start()
+        detail_threads_list.append(t)
+    
+    # Wait for all detail threads to finish
+    for t in detail_threads_list:
+        t.join()
+
+    # Ensure all tasks are marked as done
+    while not detail_queue.empty():
+        try:
+            detail_queue.get_nowait()
             detail_queue.task_done()
-            time.sleep(1)  # Delay cho chi tiết
         except queue.Empty:
             break
 
-# Start detail threads (5 threads cho chi tiết)
-detail_threads = [threading.Thread(target=detail_worker) for _ in range(5)]
-for t in detail_threads: t.start()
-for t in detail_threads: t.join()
+    elapsed_total = time.time() - start_total
+    print(f"Total time: {elapsed_total:.2f}s")
 
-# Sau đó save_data_txt và append/update Sheets (thêm rows mới hoặc update existing)
-df = pd.DataFrame(all_video_data).sort_values('page')
-# Append nếu new, hoặc update full
-sheet.append_rows(df.values.tolist()) if new else ...  # Logic append
+    if all_video_data:
+        save_data_txt()
+        update_google_sheets()
+
+if __name__ == "__main__":
+    main()
