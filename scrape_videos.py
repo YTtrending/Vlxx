@@ -11,8 +11,8 @@ import os
 import json
 
 # Configuration parameters
-NUM_THREADS = 100  # Số luồng cho scrape pagination
-DETAIL_THREADS = 100  # Số luồng cho scrape chi tiết
+NUM_THREADS = 10  # Số luồng cho scrape pagination
+DETAIL_THREADS = 5  # Số luồng cho scrape chi tiết
 MAX_PAGES = 200  # Số trang tối đa để scrape
 DETAIL_DELAY = 2.0  # Thời gian delay (giây) giữa các request chi tiết
 
@@ -94,7 +94,7 @@ def scrape_page(page_num):
         }
         video_data.append(data)
         with sheets_lock:
-            if not any(v['id'] == video_id for v in all_video_data):
+            if not any(v['id'] == video_id and v['link'] == link for v in all_video_data):
                 all_video_data.append(data)
 
     return video_data
@@ -187,7 +187,7 @@ def detail_worker():
                 print(f"Đã scrape chi tiết cho {detail_link}")
                 with sheets_lock:
                     for video in all_video_data:
-                        if video['id'] == detail_data['video_id']:
+                        if video['id'] == detail_data['video_id'] and video['link'] == detail_link:
                             video.update(detail_data)
                             break
             
@@ -215,6 +215,7 @@ def save_data_txt():
     try:
         df = pd.DataFrame(all_video_data)
         df['id'] = pd.to_numeric(df['id'], errors='coerce')
+        df = df.drop_duplicates(subset=['id', 'link'], keep='last')
         df = df.sort_values(by=['page', 'id'], ascending=[True, False])
         sorted_data = df.to_dict('records')
         with open(DATA_TXT, 'w', encoding='utf-8') as f:
@@ -235,6 +236,7 @@ def update_google_sheets():
         if all_video_data:
             df = pd.DataFrame(all_video_data)
             df['id'] = pd.to_numeric(df['id'], errors='coerce')
+            df = df.drop_duplicates(subset=['id', 'link'], keep='last')
             df = df.sort_values(by=['page', 'id'], ascending=[True, False])
             values = [df.columns.values.tolist()] + df.values.tolist()
             
@@ -270,7 +272,7 @@ def main():
     pending_links = get_pending_details()
     new_unscraped = [video['link'] for video in all_video_data if 'link' in video and video['link'] != 'N/A']
     pending_links.extend(new_unscraped)
-    pending_links = list(set(pending_links))
+    pending_links = list(set(pending_links))  # Remove duplicates
 
     # Step 4: Queue detail links
     for link in pending_links:
@@ -308,4 +310,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
