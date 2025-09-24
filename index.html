@@ -144,7 +144,7 @@
                         <div class="ml-4 flex-1">
                             <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
                             <p class="text-gray-600 mt-1 text-sm description" data-full="${video.description}">${video.description.substring(0, 100)}...</p>
-                            <button class="read-more text-blue-500 text-sm mt-1 hover:underline">Read More</button>
+                            <button class="read-more text-blue-500 text-sm mt-1 hover:underline">Xem thêm</button>
                             <p class="text-xs text-gray-500 mt-1 sm:text-sm">Actress: ${video.actress} | Views: ${formatViews(video.views)} | Rating: ${video.rating}%</p>
                             <p class="text-xs text-gray-500 sm:text-sm">${video.categories ? 'Categories: ' + video.categories : ''}</p>
                         </div>
@@ -152,17 +152,17 @@
                     videoList.appendChild(videoCard);
                 });
 
-                // Add event listeners for "Read More" buttons
+                // Add event listeners for "Xem thêm"/"Ẩn đi" buttons
                 document.querySelectorAll('.read-more').forEach(button => {
                     button.addEventListener('click', () => {
                         const description = button.previousElementSibling;
                         const fullText = description.dataset.full;
-                        if (description.textContent.includes('...')) {
+                        if (button.textContent === 'Xem thêm') {
                             description.textContent = fullText;
-                            button.textContent = 'Read Less';
+                            button.textContent = 'Ẩn đi';
                         } else {
                             description.textContent = fullText.substring(0, 100) + '...';
-                            button.textContent = 'Read More';
+                            button.textContent = 'Xem thêm';
                         }
                     });
                 });
