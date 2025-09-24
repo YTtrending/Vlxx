@@ -26,10 +26,11 @@ DATA_TXT = 'data.txt'
 # Locks
 sheets_lock = threading.Lock()
 
-# Queue and flag
+# Queue and flags
 page_queue = queue.Queue()
 detail_queue = queue.Queue()
 stop_scraping = False
+queueing_complete = False  # New flag to signal queueing is done
 all_video_data = []
 
 # Load existing data from data.txt
@@ -119,6 +120,7 @@ def worker():
 
 # Scrape detail page
 def scrape_detail(detail_link):
+    print(f"Starting detail scrape for {detail_link}")
     try:
         response = requests.get(detail_link, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
         response.raise_for_status()
@@ -174,30 +176,39 @@ def scrape_detail(detail_link):
 
 # Worker for details
 def detail_worker():
-    while not stop_scraping:
+    while not (queueing_complete and detail_queue.empty()):
         try:
             detail_link = detail_queue.get(timeout=5)  # Wait up to 5s for a link
+            if detail_link is None:  # Sentinel value to exit
+                print("Received sentinel, worker exiting")
+                detail_queue.task_done()
+                break
+
+            start_time = time.time()
+            detail_data = scrape_detail(detail_link)
+            elapsed = time.time() - start_time
+            if detail_data:
+                print(f"Scraped detail for {detail_link} in {elapsed:.2f}s")
+                # Merge into all_video_data by id
+                with sheets_lock:
+                    for video in all_video_data:
+                        if video['id'] == detail_data['video_id']:
+                            video.update(detail_data)
+                            video['detailed_scraped'] = 'true'
+                            break
+            else:
+                print(f"No detail data for {detail_link}")
+            
+            detail_queue.task_done()
+            time.sleep(2)  # Increased delay to avoid rate-limiting
         except queue.Empty:
-            print("Detail queue empty, worker exiting")
-            break
-        
-        start_time = time.time()
-        detail_data = scrape_detail(detail_link)
-        elapsed = time.time() - start_time
-        if detail_data:
-            print(f"Scraped detail for {detail_link} in {elapsed:.2f}s")
-            # Merge into all_video_data by id
-            with sheets_lock:
-                for video in all_video_data:
-                    if video['id'] == detail_data['video_id']:
-                        video.update(detail_data)
-                        video['detailed_scraped'] = 'true'
-                        break
-        else:
-            print(f"No detail data for {detail_link}")
-        
-        detail_queue.task_done()
-        time.sleep(1)  # Delay to avoid overwhelming the server
+            if queueing_complete:
+                print("Detail queue empty and queueing complete, worker exiting")
+                break
+            continue
+        except Exception as e:
+            print(f"Error in detail worker for {detail_link}: {e}")
+            detail_queue.task_done()
 
 # Get pending details from Sheet
 def get_pending_details():
@@ -248,7 +259,7 @@ def update_google_sheets():
             
             with sheets_lock:
                 sheet.clear()
-                sheet.update(values=values, range_name='A1')  # Fixed gspread update call
+                sheet.update(values=values, range_name='A1')
             print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
         else:
             print("No data to update.")
@@ -257,7 +268,7 @@ def update_google_sheets():
 
 # Main function
 def main(num_threads=10, max_pages=200, detail_threads=5):
-    global stop_scraping
+    global stop_scraping, queueing_complete
     start_total = time.time()
 
     # Step 1: Load existing data from data.txt
@@ -290,6 +301,10 @@ def main(num_threads=10, max_pages=200, detail_threads=5):
     for link in pending_links:
         print(f"Queueing detail link: {link}")
         detail_queue.put(link)
+
+    # Signal that queueing is complete
+    queueing_complete = True
+    print("Queueing complete, starting detail workers")
 
     # Step 4: Scrape details with multiple threads
     detail_threads_list = []
