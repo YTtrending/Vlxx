@@ -198,16 +198,19 @@
                     });
                     pagination.appendChild(prevBtn);
 
-                    // Page numbers: show ±2 pages and multiples of 5, 10, 15, ..., up to 50, 70, etc.
+                    // Page numbers: show ±3 pages and +5, +10, +20, +50, +100
                     const pageNumbers = new Set();
-                    // Add ±2 pages around current page
-                    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                    // Add ±3 pages around current page
+                    for (let i = Math.max(1, currentPage - 3); i <= Math.min(totalPages, currentPage + 3); i++) {
                         pageNumbers.add(i);
                     }
-                    // Add multiples of 5 up to 50, then every 20 (e.g., 50, 70, 90)
-                    for (let i = 5; i <= totalPages; i += i <= 50 ? 5 : 20) {
-                        pageNumbers.add(i);
-                    }
+                    // Add specific offsets: +5, +10, +20, +50, +100
+                    const offsets = [5, 10, 20, 50, 100];
+                    offsets.forEach(offset => {
+                        if (currentPage + offset <= totalPages) {
+                            pageNumbers.add(currentPage + offset);
+                        }
+                    });
                     // Always include page 1 and last page
                     pageNumbers.add(1);
                     pageNumbers.add(totalPages);
