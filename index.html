@@ -6,7 +6,7 @@
     <title>VLXX VIDEOS</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        .video-card { transition: transform 0.2s; }
+        .video-card { transition: transform 0.2s; width: 100%; }
         .video-card:hover { transform: scale(1.02); }
         .pagination-btn { 
             padding: 10px 20px; 
@@ -30,14 +30,13 @@
             .video-card .ml-4 { margin-left: 0; margin-top: 1rem; }
             .text-xl { font-size: 1.125rem; }
             .text-sm { font-size: 0.875rem; }
-            .container { padding: 1rem; }
             .thumbnail { max-height: 200px; }
             .filter-box { max-width: 100%; }
         }
     </style>
 </head>
 <body class="bg-gray-100">
-    <div class="container mx-auto p-4">
+    <div class="container mx-auto">
         <h1 class="text-2xl font-bold mb-4 text-center sm:text-3xl">VLXX VIDEOS</h1>
         <div class="mb-4 flex justify-center">
             <select id="sort-select" class="filter-box p-2 border rounded-lg bg-white text-sm sm:text-base">
@@ -54,163 +53,199 @@
 
     <script>
         async function loadVideos() {
+            let data;
             try {
-                // Fetch JSON data from data.txt
+                // Try fetching JSON data from data.txt
                 const response = await fetch('data.txt');
                 if (!response.ok) throw new Error('Failed to load data.txt');
-                let data = await response.json();
+                data = await response.json();
+            } catch (error) {
+                console.warn('Error loading data.txt, using fallback data:', error);
+                // Fallback to sample data
+                data = [
+                    {
+                        "page": 1,
+                        "id": 2962,
+                        "title": "Trốn trong tủ nhìn vợ mình \"cưỡi ngựa\" cùng cấp dưới",
+                        "link": "https://vlxx.bz/video/tron-trong-tu-nhin-vo-minh-cuoi-ngua-cung-cap-duoi/2962/",
+                        "thumbnail": "https://vlxx.bz/img2/2962.jpg",
+                        "ribbon": "Vietsub",
+                        "video_id": "2962",
+                        "likes": 762,
+                        "dislikes": 651,
+                        "rating": 54,
+                        "views": 646200,
+                        "video_code": "JUL-251",
+                        "video_link": "vlxx.bz/2962",
+                        "description": "Tôi và Eimi quen nhau qua một người quen và tiến tới hôn nhân chỉ sau sáu tháng. Lúc mới cưới, bố mẹ của cả hai đều phản đối, nên Eimi và tôi quyết định sẽ có con sau khi tôi được thăng chức. Kinjo là hậu bối của tôi ở công ty, là người vô trách nhiệm, thường xuyên gây chuyện khiến tôi phải vất vả đi xử lý hậu quả. Hôm nay cậu ta làm bẩn quần áo, nhà tôi ở gần đó nên tôi đưa cậu ta về nhà tôi thay đồ. Cũng từ lần đó, Eimi bắt đầu cư xử kỳ lạ, dường như cô ấy đang dần xa cách tôi hơn. Hơn nữa, tô...",
+                        "actress": "Eimi Fukada"
+                    },
+                    {
+                        "page": 1,
+                        "id": 2961,
+                        "title": "Chị dâu, em chỉ đút cặc vào lồn chị... 3cm thôi",
+                        "link": "https://vlxx.bz/video/chi-dau-em-chi-dut-cac-vao-lon-chi-3cm-thoi/2961/",
+                        "thumbnail": "https://vlxx.bz/img2/2961.jpg",
+                        "ribbon": "Vietsub",
+                        "video_id": "2961",
+                        "likes": 1860,
+                        "dislikes": 1575,
+                        "rating": 54,
+                        "views": 1400000,
+                        "video_code": "MEYD-621",
+                        "video_link": "vlxx.bz/2961",
+                        "description": "Anh trai và chị dâu Eimi của Yuji chuẩn bị về sống chung với cả nhà. Chị dâu Eimi vừa tốt bụng, lại vô cùng xinh đẹp khiến Yuji đã phải lòng cô ngay từ lần đầu gặp mặt. Khi không thể kìm nén cảm xúc của bản thân được nữa, Yuji đã mạnh dạn thổ lộ với Eimi nhưng bị từ chối. Không bỏ cuộc, Yuji liên tục thổ lộ với Eimi, cầu xin cô cho cậu hôn một lần thôi, Eimi miễn cưỡng đồng ý. Nhưng từ hôn, Yuji bắt đầu đòi hỏi nhiều hơn, đến bú cặc, đến đút cặc vào trong lồn của cô 3 cm thôi! Nhưng dù chỉ đút v...",
+                        "actress": "Eimi Fukada"
+                    }
+                ];
+            }
 
-                const videosPerPage = 30;
-                let currentPage = 1;
-                let sortBy = 'id';
+            const videosPerPage = 30;
+            let currentPage = 1;
+            let sortBy = 'id';
 
-                // Sorting function
-                function sortVideos() {
-                    data.sort((a, b) => {
-                        if (sortBy === 'id') return parseInt(b.id) - parseInt(a.id);
-                        if (sortBy === 'views') return parseFloat(b.views) - parseFloat(a.views);
-                        if (sortBy === 'likes') return parseFloat(b.likes) - parseFloat(a.likes);
-                        if (sortBy === 'rating') return parseFloat(b.rating) - parseFloat(a.rating);
-                        return 0;
-                    });
-                }
+            // Sorting function
+            function sortVideos() {
+                data.sort((a, b) => {
+                    if (sortBy === 'id') return parseInt(b.id) - parseInt(a.id);
+                    if (sortBy === 'views') return parseFloat(b.views) - parseFloat(a.views);
+                    if (sortBy === 'likes') return parseFloat(b.likes) - parseFloat(a.likes);
+                    if (sortBy === 'rating') return parseFloat(b.rating) - parseFloat(a.rating);
+                    return 0;
+                });
+            }
 
-                // Initial sort
+            // Initial sort
+            sortVideos();
+
+            // Handle sort change
+            document.getElementById('sort-select').addEventListener('change', (e) => {
+                sortBy = e.target.value;
+                currentPage = 1; // Reset to page 1 on sort change
                 sortVideos();
+                displayVideos(currentPage);
+            });
 
-                // Handle sort change
-                document.getElementById('sort-select').addEventListener('change', (e) => {
-                    sortBy = e.target.value;
-                    currentPage = 1; // Reset to page 1 on sort change
-                    sortVideos();
-                    displayVideos(currentPage);
+            function displayVideos(page) {
+                const start = (page - 1) * videosPerPage;
+                const end = start + videosPerPage;
+                const paginatedVideos = data.slice(start, end);
+
+                const videoList = document.getElementById('video-list');
+                videoList.innerHTML = '';
+
+                paginatedVideos.forEach(video => {
+                    const videoCard = document.createElement('div');
+                    videoCard.className = 'video-card bg-white p-4 rounded-lg shadow-md flex';
+                    videoCard.innerHTML = `
+                        <a href="${video.link}" target="_blank" class="flex-shrink-0">
+                            <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail object-cover rounded">
+                        </a>
+                        <div class="ml-4 flex-1">
+                            <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
+                            <p class="text-gray-600 mt-2 text-sm sm:text-base description" data-full="${video.description}">${video.description.substring(0, 100)}...</p>
+                            <button class="read-more text-blue-500 text-sm mt-1 hover:underline">Read More</button>
+                            <p class="text-xs text-gray-500 mt-1 sm:text-sm">Actress: ${video.actress} | Views: ${formatViews(video.views)} | Rating: ${video.rating}%</p>
+                            <p class="text-xs text-gray-500 sm:text-sm">${video.categories ? 'Categories: ' + video.categories : ''}</p>
+                        </div>
+                    `;
+                    videoList.appendChild(videoCard);
                 });
 
-                function displayVideos(page) {
-                    const start = (page - 1) * videosPerPage;
-                    const end = start + videosPerPage;
-                    const paginatedVideos = data.slice(start, end);
-
-                    const videoList = document.getElementById('video-list');
-                    videoList.innerHTML = '';
-
-                    paginatedVideos.forEach(video => {
-                        const videoCard = document.createElement('div');
-                        videoCard.className = 'video-card bg-white p-4 rounded-lg shadow-md flex';
-                        videoCard.innerHTML = `
-                            <a href="${video.link}" target="_blank" class="flex-shrink-0">
-                                <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail object-cover rounded">
-                            </a>
-                            <div class="ml-4 flex-1">
-                                <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
-                                <p class="text-gray-600 mt-2 text-sm sm:text-base description" data-full="${video.description}">${video.description.substring(0, 100)}...</p>
-                                <button class="read-more text-blue-500 text-sm mt-1 hover:underline">Read More</button>
-                                <p class="text-xs text-gray-500 mt-1 sm:text-sm">Actress: ${video.actress} | Views: ${formatViews(video.views)} | Rating: ${video.rating}%</p>
-                                <p class="text-xs text-gray-500 sm:text-sm">${video.categories ? 'Categories: ' + video.categories : ''}</p>
-                            </div>
-                        `;
-                        videoList.appendChild(videoCard);
-                    });
-
-                    // Add event listeners for "Read More" buttons
-                    document.querySelectorAll('.read-more').forEach(button => {
-                        button.addEventListener('click', () => {
-                            const description = button.previousElementSibling;
-                            const fullText = description.dataset.full;
-                            if (description.textContent.includes('...')) {
-                                description.textContent = fullText;
-                                button.textContent = 'Read Less';
-                            } else {
-                                description.textContent = fullText.substring(0, 100) + '...';
-                                button.textContent = 'Read More';
-                            }
-                        });
-                    });
-
-                    updatePagination();
-                }
-
-                function formatViews(views) {
-                    if (typeof views === 'string') views = parseFloat(views.replace(/[^0-9.]/g, '')) * (views.includes('M') ? 1000000 : views.includes('K') ? 1000 : 1);
-                    if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M';
-                    if (views >= 1000) return (views / 1000).toFixed(1) + 'K';
-                    return views.toLocaleString();
-                }
-
-                function updatePagination() {
-                    const totalPages = Math.ceil(data.length / videosPerPage);
-                    const paginationContainers = ['top-pagination', 'bottom-pagination'];
-
-                    paginationContainers.forEach(containerId => {
-                        const pagination = document.getElementById(containerId);
-                        pagination.innerHTML = '';
-
-                        // Previous button
-                        const prevBtn = document.createElement('button');
-                        prevBtn.className = 'pagination-btn bg-gray-200 rounded';
-                        prevBtn.textContent = 'Previous';
-                        prevBtn.disabled = currentPage === 1;
-                        prevBtn.addEventListener('click', () => {
-                            if (currentPage > 1) {
-                                currentPage--;
-                                displayVideos(currentPage);
-                            }
-                        });
-                        pagination.appendChild(prevBtn);
-
-                        // Page numbers (show 2 pages before and after current page)
-                        const startPage = Math.max(1, currentPage - 2);
-                        const endPage = Math.min(totalPages, currentPage + 2);
-                        for (let i = startPage; i <= endPage; i++) {
-                            const pageBtn = document.createElement('button');
-                            pageBtn.className = `pagination-btn bg-gray-200 rounded ${i === currentPage ? 'active' : ''}`;
-                            pageBtn.textContent = i;
-                            pageBtn.addEventListener('click', () => {
-                                currentPage = i;
-                                displayVideos(currentPage);
-                            });
-                            pagination.appendChild(pageBtn);
+                // Add event listeners for "Read More" buttons
+                document.querySelectorAll('.read-more').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const description = button.previousElementSibling;
+                        const fullText = description.dataset.full;
+                        if (description.textContent.includes('...')) {
+                            description.textContent = fullText;
+                            button.textContent = 'Read Less';
+                        } else {
+                            description.textContent = fullText.substring(0, 100) + '...';
+                            button.textContent = 'Read More';
                         }
-
-                        // Next button
-                        const nextBtn = document.createElement('button');
-                        nextBtn.className = 'pagination-btn bg-gray-200 rounded';
-                        nextBtn.textContent = 'Next';
-                        nextBtn.disabled = currentPage === totalPages;
-                        nextBtn.addEventListener('click', () => {
-                            if (currentPage < totalPages) {
-                                currentPage++;
-                                displayVideos(currentPage);
-                            }
-                        });
-                        pagination.appendChild(nextBtn);
-
-                        // Page input
-                        const pageInput = document.createElement('input');
-                        pageInput.type = 'number';
-                        pageInput.min = 1;
-                        pageInput.max = totalPages;
-                        pageInput.value = currentPage;
-                        pageInput.className = 'page-input';
-                        pageInput.addEventListener('change', () => {
-                            let newPage = parseInt(pageInput.value);
-                            if (newPage >= 1 && newPage <= totalPages) {
-                                currentPage = newPage;
-                                displayVideos(currentPage);
-                            } else {
-                                pageInput.value = currentPage;
-                            }
-                        });
-                        pagination.appendChild(pageInput);
                     });
-                }
+                });
 
-                displayVideos(currentPage);
-            } catch (error) {
-                console.error('Error loading videos:', error);
-                const videoList = document.getElementById('video-list');
-                videoList.innerHTML = '<p class="text-red-500 text-center text-sm sm:text-base">Error loading video data. Please check the data.txt file.</p>';
+                updatePagination();
             }
+
+            function formatViews(views) {
+                if (typeof views === 'string') views = parseFloat(views.replace(/[^0-9.]/g, '')) * (views.includes('M') ? 1000000 : views.includes('K') ? 1000 : 1);
+                if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M';
+                if (views >= 1000) return (views / 1000).toFixed(1) + 'K';
+                return views.toLocaleString();
+            }
+
+            function updatePagination() {
+                const totalPages = Math.ceil(data.length / videosPerPage);
+                const paginationContainers = ['top-pagination', 'bottom-pagination'];
+
+                paginationContainers.forEach(containerId => {
+                    const pagination = document.getElementById(containerId);
+                    pagination.innerHTML = '';
+
+                    // Previous button
+                    const prevBtn = document.createElement('button');
+                    prevBtn.className = 'pagination-btn bg-gray-200 rounded';
+                    prevBtn.textContent = 'Previous';
+                    prevBtn.disabled = currentPage === 1;
+                    prevBtn.addEventListener('click', () => {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            displayVideos(currentPage);
+                        }
+                    });
+                    pagination.appendChild(prevBtn);
+
+                    // Page numbers (show 2 pages before and after current page)
+                    const startPage = Math.max(1, currentPage - 2);
+                    const endPage = Math.min(totalPages, currentPage + 2);
+                    for (let i = startPage; i <= endPage; i++) {
+                        const pageBtn = document.createElement('button');
+                        pageBtn.className = `pagination-btn bg-gray-200 rounded ${i === currentPage ? 'active' : ''}`;
+                        pageBtn.textContent = i;
+                        pageBtn.addEventListener('click', () => {
+                            currentPage = i;
+                            displayVideos(currentPage);
+                        });
+                        pagination.appendChild(pageBtn);
+                    }
+
+                    // Next button
+                    const nextBtn = document.createElement('button');
+                    nextBtn.className = 'pagination-btn bg-gray-200 rounded';
+                    nextBtn.textContent = 'Next';
+                    nextBtn.disabled = currentPage === totalPages;
+                    nextBtn.addEventListener('click', () => {
+                        if (currentPage < totalPages) {
+                            currentPage++;
+                            displayVideos(currentPage);
+                        }
+                    });
+                    pagination.appendChild(nextBtn);
+
+                    // Page input
+                    const pageInput = document.createElement('input');
+                    pageInput.type = 'number';
+                    pageInput.min = 1;
+                    pageInput.max = totalPages;
+                    pageInput.value = currentPage;
+                    pageInput.className = 'page-input';
+                    pageInput.addEventListener('change', () => {
+                        let newPage = parseInt(pageInput.value);
+                        if (newPage >= 1 && newPage <= totalPages) {
+                            currentPage = newPage;
+                            displayVideos(currentPage);
+                        } else {
+                            pageInput.value = currentPage;
+                        }
+                    });
+                    pagination.appendChild(pageInput);
+                });
+            }
+
+            displayVideos(currentPage);
         }
 
         // Load videos on page load
