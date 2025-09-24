@@ -198,10 +198,22 @@
                     });
                     pagination.appendChild(prevBtn);
 
-                    // Page numbers (show 2 pages before and after current page)
-                    const startPage = Math.max(1, currentPage - 2);
-                    const endPage = Math.min(totalPages, currentPage + 2);
-                    for (let i = startPage; i <= endPage; i++) {
+                    // Page numbers: show ±2 pages and multiples of 5, 10, 15, ..., up to 50, 70, etc.
+                    const pageNumbers = new Set();
+                    // Add ±2 pages around current page
+                    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                        pageNumbers.add(i);
+                    }
+                    // Add multiples of 5 up to 50, then every 20 (e.g., 50, 70, 90)
+                    for (let i = 5; i <= totalPages; i += i <= 50 ? 5 : 20) {
+                        pageNumbers.add(i);
+                    }
+                    // Always include page 1 and last page
+                    pageNumbers.add(1);
+                    pageNumbers.add(totalPages);
+
+                    // Sort and display page numbers
+                    Array.from(pageNumbers).sort((a, b) => a - b).forEach(i => {
                         const pageBtn = document.createElement('button');
                         pageBtn.className = `pagination-btn bg-gray-200 rounded ${i === currentPage ? 'active' : ''}`;
                         pageBtn.textContent = i;
@@ -210,7 +222,7 @@
                             displayVideos(currentPage);
                         });
                         pagination.appendChild(pageBtn);
-                    }
+                    });
 
                     // Next button
                     const nextBtn = document.createElement('button');
