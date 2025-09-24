@@ -32,7 +32,7 @@ detail_queue = queue.Queue()
 stop_scraping = False
 all_video_data = []
 
-# Scrape pagination page (giống cũ, nhưng thêm cột detailed_scraped=None)
+# Scrape pagination page
 def scrape_page(page_num):
     global stop_scraping
     if stop_scraping:
@@ -75,7 +75,7 @@ def scrape_page(page_num):
             'link': link,
             'thumbnail': thumbnail,
             'ribbon': ribbon,
-            'detailed_scraped': None  # New: Track if detailed scraped
+            'detailed_scraped': None  # Track if detailed scraped
         }
         video_data.append(data)
         all_video_data.append(data)
@@ -123,8 +123,7 @@ def scrape_detail(detail_link):
     if servers:
         iframe = soup.find('iframe', src=True)
         detail_data['server1_embed'] = iframe.get('src') if iframe else 'N/A'
-        # Server2: Giả sử pattern, hoặc skip nếu phức tạp
-        detail_data['server2_embed'] = 'N/A'  # Cần JS nếu dynamic
+        detail_data['server2_embed'] = 'N/A'  # Placeholder, as server2 may require JS
 
     # Stats
     stats_div = soup.find('div', class_='video-stats')
@@ -156,7 +155,7 @@ def scrape_detail(detail_link):
 
 # Worker for details
 def detail_worker():
-    while True:
+    while not stop_scraping:
         try:
             detail_link = detail_queue.get_nowait()
         except queue.Empty:
@@ -168,16 +167,17 @@ def detail_worker():
         if detail_data:
             print(f"Scraped detail for {detail_link} in {elapsed:.2f}s")
             # Merge into all_video_data by id
-            for video in all_video_data:
-                if video['id'] == detail_data['video_id']:
-                    video.update(detail_data)
-                    video['detailed_scraped'] = 'true'
-                    break
+            with sheets_lock:  # Ensure thread-safe access to all_video_data
+                for video in all_video_data:
+                    if video['id'] == detail_data['video_id']:
+                        video.update(detail_data)
+                        video['detailed_scraped'] = 'true'
+                        break
         else:
             print(f"No detail data for {detail_link}")
         
         detail_queue.task_done()
-        time.sleep(1)  # Delay cho detail để tránh block
+        time.sleep(1)  # Delay to avoid overwhelming the server
 
 # Get pending details from Sheet
 def get_pending_details():
@@ -205,7 +205,7 @@ def save_data_txt():
     except Exception as e:
         print(f"Error saving {DATA_TXT}: {e}")
 
-# Update Google Sheets (mở rộng cột)
+# Update Google Sheets
 def update_google_sheets():
     if not os.path.exists(CREDENTIALS_FILE):
         print("Error: credentials.json not found!")
@@ -219,7 +219,6 @@ def update_google_sheets():
         if all_video_data:
             df = pd.DataFrame(all_video_data)
             df = df.sort_values(by='page')
-            # Cột mới: likes, dislikes, rating, views, video_code, description, actress, categories, detailed_scraped
             values = [df.columns.values.tolist()] + df.values.tolist()
             
             df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
@@ -239,7 +238,7 @@ def main(num_threads=10, max_pages=200, detail_threads=5):
     global stop_scraping
     start_total = time.time()
 
-    # Step 1: Scrape pagination (new videos)
+    # Step 1: Scrape pagination
     for page_num in range(1, max_pages + 1):
         page_queue.put(page_num)
 
@@ -252,20 +251,37 @@ def main(num_threads=10, max_pages=200, detail_threads=5):
     for t in threads:
         t.join()
 
-    # Step 2: Get pending details (new + old chưa scrape)
+    # Step 2: Get pending details (new + old unscraped)
     pending_links = get_pending_details()
+    for video in all_video_data:
+        if video['detailed_scraped'] != 'true' and video['link'] != 'N/A':
+            pending_links.append(video['link'])
+    
+    # Add unique pending links to queue
+    pending_links = list(set(pending_links))  # Remove duplicates
     for link in pending_links:
         detail_queue.put(link)
 
-    # Step 3: Scrape details song song
+    print(f"Total detail links to scrape: {len(pending_links)}")
+
+    # Step 3: Scrape details with multiple threads
     detail_threads_list = []
-    for _ in range(detail_threads):
+    for _ in range(min(detail_threads, len(pending_links))):  # Avoid unnecessary threads
         t = threading.Thread(target=detail_worker)
         t.start()
         detail_threads_list.append(t)
     
+    # Wait for all detail threads to finish
     for t in detail_threads_list:
         t.join()
+
+    # Ensure all tasks are marked as done
+    while not detail_queue.empty():
+        try:
+            detail_queue.get_nowait()
+            detail_queue.task_done()
+        except queue.Empty:
+            break
 
     elapsed_total = time.time() - start_total
     print(f"Total time: {elapsed_total:.2f}s")
