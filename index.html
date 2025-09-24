@@ -18,20 +18,20 @@
         .pagination-btn.active { background-color: #2563eb; color: white; }
         .pagination-btn:disabled { background-color: #e5e7eb; cursor: not-allowed; }
         .page-input { width: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; }
-        .thumbnail { width: 100%; height: auto; max-height: 300px; }
-        .filter-box { max-width: 200px; }
-        @media (min-width: 640px) {
-            .thumbnail { max-width: 300px; }
-            .video-card { flex-direction: row; }
-            .video-card .ml-4 { margin-left: 1rem; margin-top: 0; }
-        }
+        .thumbnail { width: 100%; max-width: 100%; height: auto; }
+        .filter-box { max-width: 100%; }
+        .video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
         @media (max-width: 640px) {
             .video-card { flex-direction: column; }
-            .video-card .ml-4 { margin-left: 0; margin-top: 1rem; }
-            .text-xl { font-size: 1.125rem; }
-            .text-sm { font-size: 0.875rem; }
-            .thumbnail { max-height: 200px; }
-            .filter-box { max-width: 100%; }
+            .video-card .ml-4 { margin-left: 0; margin-top: 0.5rem; }
+            .text-xl { font-size: 1rem; }
+            .text-sm { font-size: 0.75rem; }
+            .pagination-btn { padding: 8px 16px; font-size: 0.875rem; }
+            .page-input { width: 50px; padding: 6px; }
+        }
+        @media (min-width: 641px) {
+            .video-card { flex-direction: row; }
+            .video-card .ml-4 { margin-left: 1rem; margin-top: 0; }
         }
     </style>
 </head>
@@ -39,7 +39,7 @@
     <div class="container mx-auto">
         <h1 class="text-2xl font-bold mb-4 text-center sm:text-3xl">VLXX VIDEOS</h1>
         <div class="mb-4 flex justify-center">
-            <select id="sort-select" class="filter-box p-2 border rounded-lg bg-white text-sm sm:text-base">
+            <select id="sort-select" class="filter-box p-2 border rounded-lg bg-white text-sm">
                 <option value="id">Sort by Time (Newest)</option>
                 <option value="views">Sort by Views</option>
                 <option value="likes">Sort by Likes</option>
@@ -47,7 +47,7 @@
             </select>
         </div>
         <div id="top-pagination" class="flex justify-center mb-6 space-x-2 flex-wrap"></div>
-        <div id="video-list" class="space-y-4"></div>
+        <div id="video-list" class="video-grid"></div>
         <div id="bottom-pagination" class="flex justify-center mt-6 space-x-2 flex-wrap"></div>
     </div>
 
@@ -136,14 +136,14 @@
 
                 paginatedVideos.forEach(video => {
                     const videoCard = document.createElement('div');
-                    videoCard.className = 'video-card bg-white p-4 rounded-lg shadow-md flex';
+                    videoCard.className = 'video-card bg-white p-2 rounded-lg shadow-md flex';
                     videoCard.innerHTML = `
-                        <a href="${video.link}" target="_blank" class="flex-shrink-0">
+                        <a href="${video.link}" target="_blank" class="flex-shrink-0 w-full">
                             <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail object-cover rounded">
                         </a>
                         <div class="ml-4 flex-1">
                             <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
-                            <p class="text-gray-600 mt-2 text-sm sm:text-base description" data-full="${video.description}">${video.description.substring(0, 100)}...</p>
+                            <p class="text-gray-600 mt-1 text-sm description" data-full="${video.description}">${video.description.substring(0, 100)}...</p>
                             <button class="read-more text-blue-500 text-sm mt-1 hover:underline">Read More</button>
                             <p class="text-xs text-gray-500 mt-1 sm:text-sm">Actress: ${video.actress} | Views: ${formatViews(video.views)} | Rating: ${video.rating}%</p>
                             <p class="text-xs text-gray-500 sm:text-sm">${video.categories ? 'Categories: ' + video.categories : ''}</p>
@@ -168,6 +168,8 @@
                 });
 
                 updatePagination();
+                // Scroll to top of page
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
 
             function formatViews(views) {
