@@ -176,8 +176,9 @@ def scrape_detail(detail_link):
 def detail_worker():
     while not stop_scraping:
         try:
-            detail_link = detail_queue.get_nowait()
+            detail_link = detail_queue.get(timeout=5)  # Wait up to 5s for a link
         except queue.Empty:
+            print("Detail queue empty, worker exiting")
             break
         
         start_time = time.time()
@@ -247,7 +248,7 @@ def update_google_sheets():
             
             with sheets_lock:
                 sheet.clear()
-                sheet.update('A1', values)
+                sheet.update(values=values, range_name='A1')  # Fixed gspread update call
             print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
         else:
             print("No data to update.")
