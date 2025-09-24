@@ -11,8 +11,8 @@ import os
 import json
 
 # Configuration parameters
-NUM_THREADS = 10  # Số luồng cho scrape pagination
-DETAIL_THREADS = 5  # Số luồng cho scrape chi tiết
+NUM_THREADS = 100  # Số luồng cho scrape pagination
+DETAIL_THREADS = 100  # Số luồng cho scrape chi tiết
 MAX_PAGES = 200  # Số trang tối đa để scrape
 DETAIL_DELAY = 2.0  # Thời gian delay (giây) giữa các request chi tiết
 
@@ -308,3 +308,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
