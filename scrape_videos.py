@@ -10,6 +10,12 @@ import pandas as pd
 import os
 import json
 
+# Configuration parameters
+NUM_THREADS = 20  # Số luồng cho scrape pagination
+DETAIL_THREADS = 20  # Số luồng cho scrape chi tiết
+MAX_PAGES = 200  # Số trang tối đa để scrape
+DETAIL_DELAY = 1.0  # Thời gian delay (giây) giữa các request chi tiết
+
 # Base URL templates
 HOME_URL = "https://vlxx.bz/"
 PAGE_URL = "https://vlxx.bz/new/{index}/"
@@ -26,11 +32,11 @@ DATA_TXT = 'data.txt'
 # Locks
 sheets_lock = threading.Lock()
 
-# Queue and flags
+# Queues and flags
 page_queue = queue.Queue()
 detail_queue = queue.Queue()
 stop_scraping = False
-queueing_complete = False  # New flag to signal queueing is done
+queueing_complete = False  # Flag để báo hiệu queueing chi tiết hoàn tất
 all_video_data = []
 
 # Load existing data from data.txt
@@ -39,13 +45,13 @@ def load_existing_data():
         try:
             with open(DATA_TXT, 'r', encoding='utf-8') as f:
                 existing_data = json.load(f)
-            print(f"Loaded {len(existing_data)} records from {DATA_TXT}")
+            print(f"Đọc được {len(existing_data)} bản ghi từ {DATA_TXT}")
             return existing_data
         except Exception as e:
-            print(f"Error loading {DATA_TXT}: {e}")
+            print(f"Lỗi khi đọc {DATA_TXT}: {e}")
             return []
     else:
-        print(f"{DATA_TXT} not found, starting with empty data")
+        print(f"Không tìm thấy {DATA_TXT}, bắt đầu với dữ liệu rỗng")
         return []
 
 # Scrape pagination page
@@ -59,14 +65,14 @@ def scrape_page(page_num):
         response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching page {page_num}: {e}")
+        print(f"Lỗi khi lấy trang {page_num}: {e}")
         return []
 
     soup = BeautifulSoup(response.text, 'html.parser')
     items = soup.find_all('div', class_='video-item')
 
     if not items:
-        print(f"No data on page {page_num}, stopping.")
+        print(f"Không có dữ liệu trên trang {page_num}, dừng lại.")
         stop_scraping = True
         return []
 
@@ -113,25 +119,25 @@ def worker():
         data = scrape_page(page_num)
         elapsed = time.time() - start_time
         if data:
-            print(f"Scraped page {page_num} ({len(data)} videos) in {elapsed:.2f}s")
+            print(f"Đã scrape trang {page_num} ({len(data)} video) trong {elapsed:.2f}s")
         
         page_queue.task_done()
         time.sleep(0.5)
 
 # Scrape detail page
 def scrape_detail(detail_link):
-    print(f"Starting detail scrape for {detail_link}")
+    print(f"Bắt đầu scrape chi tiết cho {detail_link}")
     try:
         response = requests.get(detail_link, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'}, timeout=10)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching detail {detail_link}: {e}")
+        print(f"Lỗi khi lấy chi tiết {detail_link}: {e}")
         return None
 
     soup = BeautifulSoup(response.text, 'html.parser')
     video_div = soup.find('div', id='video')
     if not video_div:
-        print(f"No video div found for {detail_link}")
+        print(f"Không tìm thấy div video cho {detail_link}")
         return None
 
     detail_data = {}
@@ -180,7 +186,7 @@ def detail_worker():
         try:
             detail_link = detail_queue.get(timeout=5)  # Wait up to 5s for a link
             if detail_link is None:  # Sentinel value to exit
-                print("Received sentinel, worker exiting")
+                print("Nhận được sentinel, worker thoát")
                 detail_queue.task_done()
                 break
 
@@ -188,7 +194,7 @@ def detail_worker():
             detail_data = scrape_detail(detail_link)
             elapsed = time.time() - start_time
             if detail_data:
-                print(f"Scraped detail for {detail_link} in {elapsed:.2f}s")
+                print(f"Đã scrape chi tiết cho {detail_link} trong {elapsed:.2f}s")
                 # Merge into all_video_data by id
                 with sheets_lock:
                     for video in all_video_data:
@@ -197,17 +203,17 @@ def detail_worker():
                             video['detailed_scraped'] = 'true'
                             break
             else:
-                print(f"No detail data for {detail_link}")
+                print(f"Không lấy được chi tiết cho {detail_link}")
             
             detail_queue.task_done()
-            time.sleep(2)  # Increased delay to avoid rate-limiting
+            time.sleep(DETAIL_DELAY)  # Delay to avoid rate-limiting
         except queue.Empty:
             if queueing_complete:
-                print("Detail queue empty and queueing complete, worker exiting")
+                print("Hàng đợi chi tiết rỗng và queueing hoàn tất, worker thoát")
                 break
             continue
         except Exception as e:
-            print(f"Error in detail worker for {detail_link}: {e}")
+            print(f"Lỗi trong detail worker cho {detail_link}: {e}")
             detail_queue.task_done()
 
 # Get pending details from Sheet
@@ -218,10 +224,10 @@ def get_pending_details():
         sheet = client.open_by_key(SHEET_ID).sheet1
         records = sheet.get_all_records()
         pending = [row['link'] for row in records if row.get('detailed_scraped', '') != 'true' and row.get('link', '') != 'N/A']
-        print(f"Found {len(pending)} pending details to scrape from Google Sheets")
+        print(f"Tìm thấy {len(pending)} link chi tiết cần scrape từ Google Sheets")
         return pending
     except Exception as e:
-        print(f"Error getting pending details from Google Sheets: {e}")
+        print(f"Lỗi khi lấy link chi tiết từ Google Sheets: {e}")
         return []
 
 # Save data.txt as JSON, sorted by page (asc) and id (desc)
@@ -233,14 +239,14 @@ def save_data_txt():
         sorted_data = df.to_dict('records')
         with open(DATA_TXT, 'w', encoding='utf-8') as f:
             json.dump(sorted_data, f, ensure_ascii=False, indent=2)
-        print(f"Saved {DATA_TXT}: {len(sorted_data)} records")
+        print(f"Lưu {DATA_TXT}: {len(sorted_data)} bản ghi")
     except Exception as e:
-        print(f"Error saving {DATA_TXT}: {e}")
+        print(f"Lỗi khi lưu {DATA_TXT}: {e}")
 
 # Update Google Sheets
 def update_google_sheets():
     if not os.path.exists(CREDENTIALS_FILE):
-        print("Error: credentials.json not found!")
+        print("Lỗi: Không tìm thấy credentials.json!")
         return
 
     try:
@@ -255,19 +261,19 @@ def update_google_sheets():
             values = [df.columns.values.tolist()] + df.values.tolist()
             
             df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
-            print(f"Saved temp CSV: {TEMP_CSV}")
+            print(f"Lưu CSV tạm: {TEMP_CSV}")
             
             with sheets_lock:
                 sheet.clear()
                 sheet.update(values=values, range_name='A1')
-            print(f"Updated Google Sheets: {len(all_video_data)} rows across {df['page'].max()} pages")
+            print(f"Cập nhật Google Sheets: {len(all_video_data)} hàng trên {df['page'].max()} trang")
         else:
-            print("No data to update.")
+            print("Không có dữ liệu để cập nhật.")
     except Exception as e:
-        print(f"Error updating Google Sheets: {e}")
+        print(f"Lỗi khi cập nhật Google Sheets: {e}")
 
 # Main function
-def main(num_threads=10, max_pages=200, detail_threads=5):
+def main():
     global stop_scraping, queueing_complete
     start_total = time.time()
 
@@ -275,14 +281,14 @@ def main(num_threads=10, max_pages=200, detail_threads=5):
     existing_data = load_existing_data()
     with sheets_lock:
         all_video_data.extend(existing_data)
-    print(f"Total records after loading existing data: {len(all_video_data)}")
+    print(f"Tổng số bản ghi sau khi đọc dữ liệu cũ: {len(all_video_data)}")
 
     # Step 2: Scrape pagination
-    for page_num in range(1, max_pages + 1):
+    for page_num in range(1, MAX_PAGES + 1):
         page_queue.put(page_num)
 
     threads = []
-    for _ in range(num_threads):
+    for _ in range(NUM_THREADS):
         t = threading.Thread(target=worker)
         t.start()
         threads.append(t)
@@ -295,20 +301,20 @@ def main(num_threads=10, max_pages=200, detail_threads=5):
     new_unscraped = [video['link'] for video in all_video_data if video['detailed_scraped'] != 'true' and video['link'] != 'N/A']
     pending_links.extend(new_unscraped)
     pending_links = list(set(pending_links))  # Remove duplicates
-    print(f"Total unique detail links to scrape: {len(pending_links)}")
+    print(f"Tổng số link chi tiết cần scrape: {len(pending_links)}")
 
-    # Add to queue
+    # Step 4: Queue detail links
     for link in pending_links:
-        print(f"Queueing detail link: {link}")
+        print(f"Đưa vào hàng đợi chi tiết: {link}")
         detail_queue.put(link)
 
     # Signal that queueing is complete
     queueing_complete = True
-    print("Queueing complete, starting detail workers")
+    print("Đã hoàn tất đưa link vào hàng đợi chi tiết, bắt đầu các worker chi tiết")
 
-    # Step 4: Scrape details with multiple threads
+    # Step 5: Scrape details with multiple threads
     detail_threads_list = []
-    for _ in range(min(detail_threads, len(pending_links))):  # Avoid unnecessary threads
+    for _ in range(min(DETAIL_THREADS, len(pending_links))):  # Avoid unnecessary threads
         t = threading.Thread(target=detail_worker)
         t.start()
         detail_threads_list.append(t)
@@ -330,11 +336,11 @@ def main(num_threads=10, max_pages=200, detail_threads=5):
     total_videos = len(all_video_data)
     total_detailed = len([video for video in all_video_data if video['detailed_scraped'] == 'true'])
     elapsed_total = time.time() - start_total
-    print(f"Summary:")
-    print(f"  Total pages scraped: {total_pages}")
-    print(f"  Total videos collected: {total_videos}")
-    print(f"  Total detailed videos: {total_detailed}")
-    print(f"  Total time: {elapsed_total:.2f}s")
+    print(f"Tổng kết:")
+    print(f"  Tổng số trang đã scrape: {total_pages}")
+    print(f"  Tổng số video thu thập: {total_videos}")
+    print(f"  Tổng số video có chi tiết: {total_detailed}")
+    print(f"  Tổng thời gian: {elapsed_total:.2f}s")
 
     if all_video_data:
         save_data_txt()
