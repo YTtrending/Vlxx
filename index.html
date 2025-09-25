@@ -453,7 +453,7 @@
                 const touchDuration = Date.now() - touchStartTime;
                 const distance = touchStartY - touchEndY;
                 // Close popup only if swipe up is fast (duration < 300ms) and distance > 100px
-                if (distance > 200 && touchDuration < 150) {
+                if (distance > 100 && touchDuration < 200) {
                     modal.style.display = 'none';
                     document.body.classList.remove('no-scroll');
                     window.scrollTo({ top: scrollPosition, behavior: 'instant' });
