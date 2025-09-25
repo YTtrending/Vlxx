@@ -73,22 +73,24 @@
             top: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
+            overflow: hidden;
             background-color: rgba(0,0,0,0.8);
             justify-content: center;
-            align-items: flex-start; /* Start from top */
+            align-items: flex-start;
         }
         .popup-content {
             background-color: #1f2937;
-            margin: 2rem auto; /* Adjusted margin to ensure top alignment */
+            margin: 2rem auto;
             padding: 20px;
             border: 1px solid #888;
-            width: 90%; /* Increased width */
-            max-width: 700px; /* Increased max-width for larger thumbnail */
+            width: 90%;
+            max-width: 700px;
             border-radius: 8px;
             position: relative;
+            max-height: 80vh;
+            overflow-y: auto;
             touch-action: pan-y;
-            overscroll-behavior: contain; /* Prevent page scroll */
+            -webkit-overflow-scrolling: touch;
         }
         .close-btn {
             color: #aaa;
@@ -112,8 +114,11 @@
             }
         }
         #popup-thumbnail {
-            max-height: 400px; /* Increased thumbnail size */
+            max-height: 400px;
             object-fit: cover;
+        }
+        body.no-scroll {
+            overflow: hidden;
         }
     </style>
 </head>
@@ -192,6 +197,7 @@
             const videosPerPage = 30;
             let currentPage = 1;
             let sortBy = 'id';
+            let scrollPosition = 0;
 
             // Sorting function
             function sortVideos() {
@@ -263,6 +269,9 @@
                         const likes = videoCard.querySelector('.stats-container span:nth-child(3)').textContent.replace('❤️ ', '');
                         const rating = videoCard.querySelector('.stats-container span:nth-child(5)').textContent.replace('⭐ ', '');
 
+                        // Save current scroll position
+                        scrollPosition = window.scrollY;
+
                         // Populate popup
                         document.getElementById('popup-thumbnail').src = thumbnail;
                         document.getElementById('popup-title').textContent = title;
@@ -273,14 +282,14 @@
                         document.getElementById('popup-likes').textContent = `❤️ ${likes}`;
                         document.getElementById('popup-rating').textContent = `⭐ ${rating}`;
 
-                        // Show popup and ensure it starts from top
+                        // Show popup and lock body scroll
+                        document.body.classList.add('no-scroll');
                         document.getElementById('popup-modal').style.display = 'flex';
-                        window.scrollTo({ top: 0 });
                     });
                 });
 
                 updatePagination();
-                // Scroll to top of page
+                // Scroll to top of page only for pagination/sort changes
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
 
@@ -314,22 +323,18 @@
 
                     // Page numbers: show ±3 pages and +5, +10, +20, +50, +100
                     const pageNumbers = new Set();
-                    // Add ±3 pages around current page
                     for (let i = Math.max(1, currentPage - 3); i <= Math.min(totalPages, currentPage + 3); i++) {
                         pageNumbers.add(i);
                     }
-                    // Add specific offsets: +5, +10, +20, +50, +100
                     const offsets = [5, 10, 20, 50, 100];
                     offsets.forEach(offset => {
                         if (currentPage + offset <= totalPages) {
                             pageNumbers.add(currentPage + offset);
                         }
                     });
-                    // Always include page 1 and last page
                     pageNumbers.add(1);
                     pageNumbers.add(totalPages);
 
-                    // Sort and display page numbers
                     Array.from(pageNumbers).sort((a, b) => a - b).forEach(i => {
                         const pageBtn = document.createElement('button');
                         pageBtn.className = `pagination-btn bg-gray-700 text-white rounded ${i === currentPage ? 'active' : ''}`;
@@ -378,25 +383,23 @@
             const modal = document.getElementById('popup-modal');
             const closeBtn = document.querySelector('.close-btn');
 
-            // Prevent background scrolling when popup is open
-            modal.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-            }, { passive: false });
-
             // Close on click outside or close button
             window.addEventListener('click', (event) => {
                 if (event.target === modal) {
                     modal.style.display = 'none';
+                    document.body.classList.remove('no-scroll');
+                    window.scrollTo({ top: scrollPosition, behavior: 'instant' });
                 }
             });
 
             closeBtn.addEventListener('click', () => {
                 modal.style.display = 'none';
+                document.body.classList.remove('no-scroll');
+                window.scrollTo({ top: scrollPosition, behavior: 'instant' });
             });
 
             // Swipe handling for popup
             let touchStartY = 0;
-            let touchEndY = 0;
             let touchStartTime = 0;
             const popupContent = document.querySelector('.popup-content');
 
@@ -406,12 +409,14 @@
             });
 
             popupContent.addEventListener('touchend', (e) => {
-                touchEndY = e.changedTouches[0].screenY;
+                const touchEndY = e.changedTouches[0].screenY;
                 const touchDuration = Date.now() - touchStartTime;
                 const distance = touchStartY - touchEndY;
                 // Close popup only if swipe up is fast (duration < 300ms) and distance > 100px
                 if (distance > 100 && touchDuration < 300) {
                     modal.style.display = 'none';
+                    document.body.classList.remove('no-scroll');
+                    window.scrollTo({ top: scrollPosition, behavior: 'instant' });
                 }
             });
 
