@@ -22,16 +22,31 @@
         .filter-box { max-width: 100%; }
         .video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
         @media (max-width: 640px) {
-            .video-card { flex-direction: column; }
+            .video-card { flex-direction: column; padding: 0.5rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.5rem; }
             .text-xl { font-size: 1rem; }
             .text-sm { font-size: 0.75rem; }
             .pagination-btn { padding: 8px 16px; font-size: 0.875rem; }
             .page-input { width: 50px; padding: 6px; }
+            .video-grid { gap: 0.5rem; }
         }
-        @media (min-width: 641px) {
-            .video-card { flex-direction: row; }
-            .video-card .ml-4 { margin-left: 1rem; margin-top: 0; }
+        @media (min-width: 641px) and (max-width: 1024px) {
+            .video-card { flex-direction: column; padding: 1rem; }
+            .video-card .ml-4 { margin-left: 0; margin-top: 0.5rem; }
+            .text-xl { font-size: 1.125rem; }
+            .text-sm { font-size: 0.875rem; }
+            .pagination-btn { padding: 10px 20px; font-size: 1rem; }
+            .page-input { width: 60px; padding: 8px; }
+            .video-grid { gap: 1rem; }
+        }
+        @media (min-width: 1025px) {
+            .video-card { flex-direction: column; padding: 1.5rem; }
+            .video-card .ml-4 { margin-left: 0; margin-top: 0.5rem; }
+            .text-xl { font-size: 1.25rem; }
+            .text-sm { font-size: 1rem; }
+            .pagination-btn { padding: 12px 24px; font-size: 1.125rem; }
+            .page-input { width: 70px; padding: 10px; }
+            .video-grid { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
         }
     </style>
 </head>
@@ -39,7 +54,7 @@
     <div class="container mx-auto">
         <h1 class="text-2xl font-bold mb-4 text-center sm:text-3xl">VLXX VIDEOS</h1>
         <div class="mb-4 flex justify-center">
-            <select id="sort-select" class="filter-box p-2 border rounded-lg bg-white text-sm">
+            <select id="sort-select" class="filter-box p-2 border rounded-lg bg-white text-sm sm:text-base">
                 <option value="id">Sort by Time (Newest)</option>
                 <option value="views">Sort by Views</option>
                 <option value="likes">Sort by Likes</option>
@@ -136,7 +151,7 @@
 
                 paginatedVideos.forEach(video => {
                     const videoCard = document.createElement('div');
-                    videoCard.className = 'video-card bg-white p-2 rounded-lg shadow-md flex';
+                    videoCard.className = 'video-card bg-white rounded-lg shadow-md flex';
                     videoCard.innerHTML = `
                         <a href="${video.link}" target="_blank" class="flex-shrink-0 w-full">
                             <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail object-cover rounded">
