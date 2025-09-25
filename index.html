@@ -33,7 +33,7 @@
             .video-card .ml-4 { margin-left: 0; margin-top: 0.125rem; }
             .text-xl { font-size: 0.625rem; line-height: 1.1; }
             .text-sm { font-size: 0.875rem; line-height: 1.1; }
-            .text-xs { font-size: 0.625rem; line-height: 1.1; } /* Increased size for stats */
+            .text-xs { font-size: 0.625rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 6px 12px; font-size: 0.75rem; }
             .page-input { width: 40px; padding: 4px; }
@@ -45,7 +45,7 @@
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1rem; line-height: 1.1; }
             .text-sm { font-size: 1.125rem; line-height: 1.1; }
-            .text-xs { font-size: 0.875rem; line-height: 1.1; } /* Increased size for stats */
+            .text-xs { font-size: 0.875rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 10px 20px; font-size: 1rem; }
             .page-input { width: 60px; padding: 8px; }
@@ -57,7 +57,7 @@
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1.125rem; line-height: 1.1; }
             .text-sm { font-size: 1.25rem; line-height: 1.1; }
-            .text-xs { font-size: 1rem; line-height: 1.1; } /* Increased size for stats */
+            .text-xs { font-size: 1rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 12px 24px; font-size: 1.125rem; }
             .page-input { width: 70px; padding: 10px; }
@@ -76,18 +76,19 @@
             overflow: auto;
             background-color: rgba(0,0,0,0.8);
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* Start from top */
         }
         .popup-content {
             background-color: #1f2937;
-            margin: 15% auto;
+            margin: 2rem auto; /* Adjusted margin to ensure top alignment */
             padding: 20px;
             border: 1px solid #888;
-            width: 80%;
-            max-width: 600px;
+            width: 90%; /* Increased width */
+            max-width: 700px; /* Increased max-width for larger thumbnail */
             border-radius: 8px;
             position: relative;
             touch-action: pan-y;
+            overscroll-behavior: contain; /* Prevent page scroll */
         }
         .close-btn {
             color: #aaa;
@@ -102,13 +103,17 @@
             cursor: pointer;
         }
         #popup-title {
-            font-size: 1.5rem; /* Increased title size */
+            font-size: 1.5rem;
             line-height: 1.2;
         }
         @media (min-width: 641px) {
             #popup-title {
-                font-size: 2rem; /* Larger title for larger screens */
+                font-size: 2rem;
             }
+        }
+        #popup-thumbnail {
+            max-height: 400px; /* Increased thumbnail size */
+            object-fit: cover;
         }
     </style>
 </head>
@@ -268,8 +273,9 @@
                         document.getElementById('popup-likes').textContent = `❤️ ${likes}`;
                         document.getElementById('popup-rating').textContent = `⭐ ${rating}`;
 
-                        // Show popup
+                        // Show popup and ensure it starts from top
                         document.getElementById('popup-modal').style.display = 'flex';
+                        window.scrollTo({ top: 0 });
                     });
                 });
 
@@ -372,6 +378,11 @@
             const modal = document.getElementById('popup-modal');
             const closeBtn = document.querySelector('.close-btn');
 
+            // Prevent background scrolling when popup is open
+            modal.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+
             // Close on click outside or close button
             window.addEventListener('click', (event) => {
                 if (event.target === modal) {
@@ -383,18 +394,23 @@
                 modal.style.display = 'none';
             });
 
-            // Swipe up to close (for mobile)
+            // Swipe handling for popup
             let touchStartY = 0;
             let touchEndY = 0;
+            let touchStartTime = 0;
             const popupContent = document.querySelector('.popup-content');
 
             popupContent.addEventListener('touchstart', (e) => {
                 touchStartY = e.changedTouches[0].screenY;
+                touchStartTime = Date.now();
             });
 
             popupContent.addEventListener('touchend', (e) => {
                 touchEndY = e.changedTouches[0].screenY;
-                if (touchStartY - touchEndY > 50) { // Swipe up threshold
+                const touchDuration = Date.now() - touchStartTime;
+                const distance = touchStartY - touchEndY;
+                // Close popup only if swipe up is fast (duration < 300ms) and distance > 100px
+                if (distance > 100 && touchDuration < 300) {
                     modal.style.display = 'none';
                 }
             });
