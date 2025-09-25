@@ -24,41 +24,42 @@
         .video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.25rem; }
         .description { display: inline; }
         .read-more { display: inline; margin-left: 0.25rem; white-space: nowrap; }
+        .description-container { display: block; }
         @media (max-width: 640px) {
             .video-card { flex-direction: column; padding: 0.125rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.125rem; }
             .text-xl { font-size: 0.75rem; line-height: 1.1; }
-            .text-sm { font-size: 0.625rem; line-height: 1.1; }
+            .text-sm { font-size: 0.75rem; line-height: 1.1; }
             .text-xs { font-size: 0.625rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 6px 12px; font-size: 0.75rem; }
             .page-input { width: 40px; padding: 4px; }
             .video-grid { gap: 0.25rem; }
-            .description, .read-more, .text-xs { margin-top: 0.125rem; }
+            .description-container, .text-xs { margin-top: 0.125rem; }
         }
         @media (min-width: 641px) and (max-width: 1024px) {
             .video-card { flex-direction: column; padding: 0.5rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1.125rem; line-height: 1.1; }
-            .text-sm { font-size: 0.875rem; line-height: 1.1; }
+            .text-sm { font-size: 1rem; line-height: 1.1; }
             .text-xs { font-size: 0.875rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 10px 20px; font-size: 1rem; }
             .page-input { width: 60px; padding: 8px; }
             .video-grid { grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-            .description, .read-more, .text-xs { margin-top: 0.25rem; }
+            .description-container, .text-xs { margin-top: 0.25rem; }
         }
         @media (min-width: 1025px) {
             .video-card { flex-direction: column; padding: 0.75rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1.25rem; line-height: 1.1; }
-            .text-sm { font-size: 1rem; line-height: 1.1; }
+            .text-sm { font-size: 1.125rem; line-height: 1.1; }
             .text-xs { font-size: 1rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 12px 24px; font-size: 1.125rem; }
             .page-input { width: 70px; padding: 10px; }
             .video-grid { grid-template-columns: repeat(5, 1fr); gap: 1.5rem; }
-            .description, .read-more, .text-xs { margin-top: 0.25rem; }
+            .description-container, .text-xs { margin-top: 0.25rem; }
         }
     </style>
 </head>
@@ -154,8 +155,10 @@
                         </div>
                         <div class="ml-4 flex-1">
                             <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
-                            <p class="text-gray-600 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
-                            <button class="read-more text-blue-500 text-sm hover:underline">Xem thêm</button>
+                            <div class="description-container">
+                                <p class="text-gray-600 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
+                                <button class="read-more text-blue-500 text-sm hover:underline">Xem thêm</button>
+                            </div>
                             <p class="text-xs text-gray-500 sm:text-sm">Views: ${formatViews(video.views)}</p>
                             <p class="text-xs text-gray-500 sm:text-sm">${video.categories ? 'Categories: ' + video.categories : ''}</p>
                         </div>
