@@ -156,7 +156,7 @@ def scrape_detail(detail_link):
         detail_data['video_link'] = info_div.find('span', class_='video-link').text.strip() if info_div.find('span', class_='video-link') else 'N/A'
 
     desc_div = soup.find('div', class_='video-description')
-    detail_data['description'] = desc_div.text.strip()[:500] + '...' if desc_div and len(desc_div.text.strip()) > 500 else (desc_div.text.strip() if desc_div else 'N/A')
+    detail_data['description'] = desc_div.text.strip()[:1000] + '...' if desc_div and len(desc_div.text.strip()) > 1000 else (desc_div.text.strip() if desc_div else 'N/A')
 
     actress_div = soup.find('div', class_='actress-tag')
     detail_data['actress'] = actress_div.find('a').get('title', 'N/A') if actress_div and actress_div.find('a') else 'N/A'
@@ -306,4 +306,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
