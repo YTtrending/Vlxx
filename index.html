@@ -16,8 +16,8 @@
             touch-action: manipulation; 
         }
         .pagination-btn.active { background-color: #2563eb; color: white; }
-        .pagination-btn:disabled { background-color: #e5e7eb; cursor: not-allowed; }
-        .page-input { width: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; }
+        .pagination-btn:disabled { background-color: #4b5563; cursor: not-allowed; }
+        .page-input { width: 60px; padding: 8px; border: 1px solid #4b5563; border-radius: 8px; }
         .thumbnail { width: 100%; max-width: 100%; height: auto; display: block; }
         .thumbnail-container { width: 100%; padding: 0; }
         .filter-box { max-width: 100%; }
@@ -25,49 +25,50 @@
         .description { display: inline; }
         .read-more { display: inline; margin-left: 0.25rem; white-space: nowrap; }
         .description-container { display: block; }
+        .stats-container { display: flex; gap: 0.5rem; align-items: center; }
         @media (max-width: 640px) {
             .video-card { flex-direction: column; padding: 0.125rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.125rem; }
             .text-xl { font-size: 0.625rem; line-height: 1.1; }
-            .text-sm { font-size: 0.75rem; line-height: 1.1; }
-            .text-xs { font-size: 0.625rem; line-height: 1.1; }
+            .text-sm { font-size: 0.875rem; line-height: 1.1; }
+            .text-xs { font-size: 0.5rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 6px 12px; font-size: 0.75rem; }
             .page-input { width: 40px; padding: 4px; }
             .video-grid { gap: 0.25rem; }
-            .description-container, .text-xs { margin-top: 0.125rem; }
+            .description-container, .stats-container { margin-top: 0.125rem; }
         }
         @media (min-width: 641px) and (max-width: 1024px) {
             .video-card { flex-direction: column; padding: 0.5rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1rem; line-height: 1.1; }
-            .text-sm { font-size: 1rem; line-height: 1.1; }
-            .text-xs { font-size: 0.875rem; line-height: 1.1; }
+            .text-sm { font-size: 1.125rem; line-height: 1.1; }
+            .text-xs { font-size: 0.75rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 10px 20px; font-size: 1rem; }
             .page-input { width: 60px; padding: 8px; }
             .video-grid { grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-            .description-container, .text-xs { margin-top: 0.25rem; }
+            .description-container, .stats-container { margin-top: 0.25rem; }
         }
         @media (min-width: 1025px) {
             .video-card { flex-direction: column; padding: 0.75rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1.125rem; line-height: 1.1; }
-            .text-sm { font-size: 1.125rem; line-height: 1.1; }
-            .text-xs { font-size: 1rem; line-height: 1.1; }
+            .text-sm { font-size: 1.25rem; line-height: 1.1; }
+            .text-xs { font-size: 0.875rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 12px 24px; font-size: 1.125rem; }
             .page-input { width: 70px; padding: 10px; }
             .video-grid { grid-template-columns: repeat(5, 1fr); gap: 1.5rem; }
-            .description-container, .text-xs { margin-top: 0.25rem; }
+            .description-container, .stats-container { margin-top: 0.25rem; }
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-900">
     <div class="container mx-auto">
-        <h1 class="text-2xl font-bold mb-4 text-center sm:text-3xl">VLXX VIDEOS</h1>
+        <h1 class="text-2xl font-bold mb-4 text-center text-white sm:text-3xl">VLXX VIDEOS</h1>
         <div class="mb-4 flex justify-center">
-            <select id="sort-select" class="filter-box p-2 border rounded-lg bg-white text-sm sm:text-base">
+            <select id="sort-select" class="filter-box p-2 border rounded-lg bg-gray-800 text-white text-sm sm:text-base">
                 <option value="id">Sort by Time (Newest)</option>
                 <option value="views">Sort by Views</option>
                 <option value="likes">Sort by Likes</option>
@@ -97,7 +98,9 @@
                         "link": "https://vlxx.bz/video/tron-trong-tu-nhin-vo-minh-cuoi-ngua-cung-cap-duoi/2962/",
                         "thumbnail": "https://vlxx.bz/img2/2962.jpg",
                         "description": "Tôi và Eimi quen nhau qua một người quen và tiến tới hôn nhân chỉ sau sáu tháng. Lúc mới cưới, bố mẹ của cả hai đều phản đối, nên Eimi và tôi quyết định sẽ có con sau khi tôi được thăng chức. Kinjo là hậu bối của tôi ở công ty, là người vô trách nhiệm, thường xuyên gây chuyện khiến tôi phải vất vả đi xử lý hậu quả. Hôm nay cậu ta làm bẩn quần áo, nhà tôi ở gần đó nên tôi đưa cậu ta về nhà tôi thay đồ. Cũng từ lần đó, Eimi bắt đầu cư xử kỳ lạ, dường như cô ấy đang dần xa cách tôi hơn. Hơn nữa, tô...",
-                        "views": 646200
+                        "views": 646200,
+                        "likes": 1200,
+                        "rating": 4.5
                     },
                     {
                         "id": 2961,
@@ -105,7 +108,9 @@
                         "link": "https://vlxx.bz/video/chi-dau-em-chi-dut-cac-vao-lon-chi-3cm-thoi/2961/",
                         "thumbnail": "https://vlxx.bz/img2/2961.jpg",
                         "description": "Anh trai và chị dâu Eimi của Yuji chuẩn bị về sống chung với cả nhà. Chị dâu Eimi vừa tốt bụng, lại vô cùng xinh đẹp khiến Yuji đã phải lòng cô ngay từ lần đầu gặp mặt. Khi không thể kìm nén cảm xúc của bản thân được nữa, Yuji đã mạnh dạn thổ lộ với Eimi nhưng bị từ chối. Không bỏ cuộc, Yuji liên tục thổ lộ với Eimi, cầu xin cô cho cậu hôn một lần thôi, Eimi miễn cưỡng đồng ý. Nhưng từ hôn, Yuji bắt đầu đòi hỏi nhiều hơn, đến bú cặc, đến đút cặc vào trong lồn của cô 3 cm thôi! Nhưng dù chỉ đút v...",
-                        "views": 1400000
+                        "views": 1400000,
+                        "likes": 2500,
+                        "rating": 4.8
                     }
                 ];
             }
@@ -146,7 +151,7 @@
 
                 paginatedVideos.forEach(video => {
                     const videoCard = document.createElement('div');
-                    videoCard.className = 'video-card bg-white rounded-lg shadow-md flex';
+                    videoCard.className = 'video-card bg-gray-800 rounded-lg shadow-md flex';
                     videoCard.innerHTML = `
                         <div class="thumbnail-container">
                             <a href="${video.link}" target="_blank" class="flex-shrink-0 w-full">
@@ -154,13 +159,18 @@
                             </a>
                         </div>
                         <div class="ml-4 flex-1">
-                            <a href="${video.link}" target="_blank" class="text-lg font-bold text-red-600 hover:underline sm:text-xl">${video.title}</a>
+                            <a href="${video.link}" target="_blank" class="text-lg font-bold text-white hover:underline sm:text-xl">${video.title}</a>
                             <div class="description-container">
-                                <p class="text-gray-600 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
-                                <button class="read-more text-blue-500 text-sm hover:underline">Xem thêm</button>
+                                <p class="text-gray-300 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
+                                <button class="read-more text-blue-400 text-sm hover:underline">Xem thêm</button>
                             </div>
-                            <p class="text-xs text-gray-500 sm:text-sm">Views: ${formatViews(video.views)}</p>
-                            <p class="text-xs text-gray-500 sm:text-sm">${video.categories ? 'Categories: ' + video.categories : ''}</p>
+                            <div class="stats-container text-gray-500 text-xs sm:text-sm">
+                                <span>👁️ ${formatViews(video.views)}</span>
+                                <span> • </span>
+                                <span>❤️ ${video.likes || 0}</span>
+                                <span> • </span>
+                                <span>⭐ ${video.rating || 0}</span>
+                            </div>
                         </div>
                     `;
                     videoList.appendChild(videoCard);
@@ -205,7 +215,7 @@
 
                     // Previous button
                     const prevBtn = document.createElement('button');
-                    prevBtn.className = 'pagination-btn bg-gray-200 rounded';
+                    prevBtn.className = 'pagination-btn bg-gray-700 text-white rounded';
                     prevBtn.textContent = 'Previous';
                     prevBtn.disabled = currentPage === 1;
                     prevBtn.addEventListener('click', () => {
@@ -236,7 +246,7 @@
                     // Sort and display page numbers
                     Array.from(pageNumbers).sort((a, b) => a - b).forEach(i => {
                         const pageBtn = document.createElement('button');
-                        pageBtn.className = `pagination-btn bg-gray-200 rounded ${i === currentPage ? 'active' : ''}`;
+                        pageBtn.className = `pagination-btn bg-gray-700 text-white rounded ${i === currentPage ? 'active' : ''}`;
                         pageBtn.textContent = i;
                         pageBtn.addEventListener('click', () => {
                             currentPage = i;
@@ -247,7 +257,7 @@
 
                     // Next button
                     const nextBtn = document.createElement('button');
-                    nextBtn.className = 'pagination-btn bg-gray-200 rounded';
+                    nextBtn.className = 'pagination-btn bg-gray-700 text-white rounded';
                     nextBtn.textContent = 'Next';
                     nextBtn.disabled = currentPage === totalPages;
                     nextBtn.addEventListener('click', () => {
@@ -264,7 +274,7 @@
                     pageInput.min = 1;
                     pageInput.max = totalPages;
                     pageInput.value = currentPage;
-                    pageInput.className = 'page-input';
+                    pageInput.className = 'page-input bg-gray-800 text-white';
                     pageInput.addEventListener('change', () => {
                         let newPage = parseInt(pageInput.value);
                         if (newPage >= 1 && newPage <= totalPages) {
