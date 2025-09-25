@@ -218,6 +218,16 @@
             let sortBy = 'id';
             let scrollPosition = 0;
 
+            // Get page from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const pageFromUrl = parseInt(urlParams.get('page'));
+            const pageFromStorage = parseInt(localStorage.getItem('lastPage'));
+            if (pageFromUrl && !isNaN(pageFromUrl)) {
+                currentPage = pageFromUrl;
+            } else if (pageFromStorage && !isNaN(pageFromStorage)) {
+                currentPage = pageFromStorage;
+            }
+
             // Sorting function
             function sortVideos() {
                 data.sort((a, b) => {
@@ -236,6 +246,8 @@
             document.getElementById('sort-select').addEventListener('change', (e) => {
                 sortBy = e.target.value;
                 currentPage = 1; // Reset to page 1 on sort change
+                localStorage.setItem('lastPage', currentPage);
+                history.pushState(null, '', `?page=${currentPage}`);
                 sortVideos();
                 displayVideos(currentPage);
             });
@@ -336,6 +348,8 @@
                     prevBtn.addEventListener('click', () => {
                         if (currentPage > 1) {
                             currentPage--;
+                            localStorage.setItem('lastPage', currentPage);
+                            history.pushState(null, '', `?page=${currentPage}`);
                             displayVideos(currentPage);
                         }
                     });
@@ -361,6 +375,8 @@
                         pageBtn.textContent = i;
                         pageBtn.addEventListener('click', () => {
                             currentPage = i;
+                            localStorage.setItem('lastPage', currentPage);
+                            history.pushState(null, '', `?page=${currentPage}`);
                             displayVideos(currentPage);
                         });
                         pagination.appendChild(pageBtn);
@@ -374,6 +390,8 @@
                     nextBtn.addEventListener('click', () => {
                         if (currentPage < totalPages) {
                             currentPage++;
+                            localStorage.setItem('lastPage', currentPage);
+                            history.pushState(null, '', `?page=${currentPage}`);
                             displayVideos(currentPage);
                         }
                     });
@@ -390,6 +408,8 @@
                         let newPage = parseInt(pageInput.value);
                         if (newPage >= 1 && newPage <= totalPages) {
                             currentPage = newPage;
+                            localStorage.setItem('lastPage', currentPage);
+                            history.pushState(null, '', `?page=${currentPage}`);
                             displayVideos(currentPage);
                         } else {
                             pageInput.value = currentPage;
