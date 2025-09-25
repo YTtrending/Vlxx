@@ -218,15 +218,28 @@
             let sortBy = 'id';
             let scrollPosition = 0;
 
-            // Get page from URL or localStorage
+            // Get page and sort from URL or localStorage
             const urlParams = new URLSearchParams(window.location.search);
             const pageFromUrl = parseInt(urlParams.get('page'));
+            const sortFromUrl = urlParams.get('sort');
             const pageFromStorage = parseInt(localStorage.getItem('lastPage'));
+            const sortFromStorage = localStorage.getItem('lastSort');
+
+            // Prioritize URL parameters, then localStorage, then default
             if (pageFromUrl && !isNaN(pageFromUrl)) {
                 currentPage = pageFromUrl;
             } else if (pageFromStorage && !isNaN(pageFromStorage)) {
                 currentPage = pageFromStorage;
             }
+
+            if (sortFromUrl && ['id', 'views', 'likes', 'rating'].includes(sortFromUrl)) {
+                sortBy = sortFromUrl;
+            } else if (sortFromStorage && ['id', 'views', 'likes', 'rating'].includes(sortFromStorage)) {
+                sortBy = sortFromStorage;
+            }
+
+            // Set initial sort value in select element
+            document.getElementById('sort-select').value = sortBy;
 
             // Sorting function
             function sortVideos() {
@@ -247,7 +260,8 @@
                 sortBy = e.target.value;
                 currentPage = 1; // Reset to page 1 on sort change
                 localStorage.setItem('lastPage', currentPage);
-                history.pushState(null, '', `?page=${currentPage}`);
+                localStorage.setItem('lastSort', sortBy);
+                history.pushState(null, '', `?page=${currentPage}&sort=${sortBy}`);
                 sortVideos();
                 displayVideos(currentPage);
             });
@@ -349,7 +363,8 @@
                         if (currentPage > 1) {
                             currentPage--;
                             localStorage.setItem('lastPage', currentPage);
-                            history.pushState(null, '', `?page=${currentPage}`);
+                            localStorage.setItem('lastSort', sortBy);
+                            history.pushState(null, '', `?page=${currentPage}&sort=${sortBy}`);
                             displayVideos(currentPage);
                         }
                     });
@@ -376,7 +391,8 @@
                         pageBtn.addEventListener('click', () => {
                             currentPage = i;
                             localStorage.setItem('lastPage', currentPage);
-                            history.pushState(null, '', `?page=${currentPage}`);
+                            localStorage.setItem('lastSort', sortBy);
+                            history.pushState(null, '', `?page=${currentPage}&sort=${sortBy}`);
                             displayVideos(currentPage);
                         });
                         pagination.appendChild(pageBtn);
@@ -391,7 +407,8 @@
                         if (currentPage < totalPages) {
                             currentPage++;
                             localStorage.setItem('lastPage', currentPage);
-                            history.pushState(null, '', `?page=${currentPage}`);
+                            localStorage.setItem('lastSort', sortBy);
+                            history.pushState(null, '', `?page=${currentPage}&sort=${sortBy}`);
                             displayVideos(currentPage);
                         }
                     });
@@ -409,7 +426,8 @@
                         if (newPage >= 1 && newPage <= totalPages) {
                             currentPage = newPage;
                             localStorage.setItem('lastPage', currentPage);
-                            history.pushState(null, '', `?page=${currentPage}`);
+                            localStorage.setItem('lastSort', sortBy);
+                            history.pushState(null, '', `?page=${currentPage}&sort=${sortBy}`);
                             displayVideos(currentPage);
                         } else {
                             pageInput.value = currentPage;
@@ -422,6 +440,7 @@
             // Popup handling
             const modal = document.getElementById('popup-modal');
             const closeBtn = document.querySelector('.close-btn');
+            const popupContent = document.querySelector('.popup-content');
 
             // Close on click outside or close button
             window.addEventListener('click', (event) => {
@@ -441,7 +460,6 @@
             // Swipe handling for popup
             let touchStartY = 0;
             let touchStartTime = 0;
-            const popupContent = document.querySelector('.popup-content');
 
             popupContent.addEventListener('touchstart', (e) => {
                 touchStartY = e.changedTouches[0].screenY;
@@ -452,8 +470,10 @@
                 const touchEndY = e.changedTouches[0].screenY;
                 const touchDuration = Date.now() - touchStartTime;
                 const distance = touchStartY - touchEndY;
-                // Close popup only if swipe up is fast (duration < 300ms) and distance > 100px
-                if (distance > 100 && touchDuration < 200) {
+                const isAtBottom = popupContent.scrollTop + popupContent.clientHeight >= popupContent.scrollHeight;
+
+                // Close popup if swiped up at bottom (any speed) or swiped up fast (distance > 100px, duration < 200ms)
+                if ((isAtBottom && distance > 0) || (!isAtBottom && distance > 100 && touchDuration < 200)) {
                     modal.style.display = 'none';
                     document.body.classList.remove('no-scroll');
                     window.scrollTo({ top: scrollPosition, behavior: 'instant' });
