@@ -26,12 +26,14 @@
         .read-more { display: inline; margin-left: 0.25rem; white-space: nowrap; }
         .description-container { display: block; }
         .stats-container { display: flex; gap: 0.5rem; align-items: center; }
+        .video-content { display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; width: 100%; }
+        .video-title { white-space: normal; word-wrap: break-word; width: 100%; }
         @media (max-width: 640px) {
             .video-card { flex-direction: column; padding: 0.125rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.125rem; }
             .text-xl { font-size: 0.625rem; line-height: 1.1; }
             .text-sm { font-size: 0.875rem; line-height: 1.1; }
-            .text-xs { font-size: 0.75rem; line-height: 1.1; }
+            .text-xs { font-size: 0.625rem; line-height: 1.1; } /* Increased size for stats */
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 6px 12px; font-size: 0.75rem; }
             .page-input { width: 40px; padding: 4px; }
@@ -43,7 +45,7 @@
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1rem; line-height: 1.1; }
             .text-sm { font-size: 1.125rem; line-height: 1.1; }
-            .text-xs { font-size: 0.75rem; line-height: 1.1; }
+            .text-xs { font-size: 0.875rem; line-height: 1.1; } /* Increased size for stats */
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 10px 20px; font-size: 1rem; }
             .page-input { width: 60px; padding: 8px; }
@@ -55,12 +57,58 @@
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1.125rem; line-height: 1.1; }
             .text-sm { font-size: 1.25rem; line-height: 1.1; }
-            .text-xs { font-size: 0.875rem; line-height: 1.1; }
+            .text-xs { font-size: 1rem; line-height: 1.1; } /* Increased size for stats */
             .read-more { line-height: 1.1; }
             .pagination-btn { padding: 12px 24px; font-size: 1.125rem; }
             .page-input { width: 70px; padding: 10px; }
             .video-grid { grid-template-columns: repeat(5, 1fr); gap: 1.5rem; }
             .description-container, .stats-container { margin-top: 0.25rem; }
+        }
+        /* Popup styles */
+        #popup-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+        }
+        .popup-content {
+            background-color: #1f2937;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            position: relative;
+            touch-action: pan-y;
+        }
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #popup-title {
+            font-size: 1.5rem; /* Increased title size */
+            line-height: 1.2;
+        }
+        @media (min-width: 641px) {
+            #popup-title {
+                font-size: 2rem; /* Larger title for larger screens */
+            }
         }
     </style>
 </head>
@@ -78,6 +126,27 @@
         <div id="top-pagination" class="flex justify-center mb-6 space-x-2 flex-wrap"></div>
         <div id="video-list" class="video-grid"></div>
         <div id="bottom-pagination" class="flex justify-center mt-6 space-x-2 flex-wrap"></div>
+    </div>
+
+    <!-- Popup Modal -->
+    <div id="popup-modal">
+        <div class="popup-content">
+            <span class="close-btn">&times;</span>
+            <a id="popup-link" href="" target="_blank">
+                <img id="popup-thumbnail" src="" alt="" class="w-full h-auto mb-4 rounded">
+            </a>
+            <a id="popup-title-link" href="" target="_blank">
+                <h2 id="popup-title" class="text-xl font-bold text-white mb-2 hover:underline"></h2>
+            </a>
+            <p id="popup-description" class="text-gray-300 mb-4"></p>
+            <div class="stats-container text-gray-500">
+                <span id="popup-views"></span>
+                <span> • </span>
+                <span id="popup-likes"></span>
+                <span> • </span>
+                <span id="popup-rating"></span>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -151,20 +220,20 @@
 
                 paginatedVideos.forEach(video => {
                     const videoCard = document.createElement('div');
-                    videoCard.className = 'video-card bg-gray-800 rounded-lg shadow-md flex';
+                    videoCard.className = 'video-card bg-gray-800 rounded-lg shadow-md flex flex-col';
                     videoCard.innerHTML = `
                         <div class="thumbnail-container">
                             <a href="${video.link}" target="_blank" class="flex-shrink-0 w-full">
                                 <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail object-cover rounded-t">
                             </a>
                         </div>
-                        <div class="ml-4 flex-1">
-                            <a href="${video.link}" target="_blank" class="text-lg font-bold text-white hover:underline sm:text-xl">${video.title}</a>
-                            <div class="description-container">
+                        <div class="video-content p-2">
+                            <a href="${video.link}" target="_blank" class="video-title text-lg font-bold text-white hover:underline sm:text-xl">${video.title}</a>
+                            <div class="description-container mt-2">
                                 <p class="text-gray-300 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
                                 <button class="read-more text-blue-400 text-sm hover:underline">Xem thêm</button>
                             </div>
-                            <div class="stats-container text-gray-500 text-xs sm:text-sm">
+                            <div class="stats-container text-gray-500 text-xs sm:text-sm mt-2">
                                 <span>👁️ ${formatViews(video.views)}</span>
                                 <span> • </span>
                                 <span>❤️ ${video.likes || 0}</span>
@@ -176,20 +245,31 @@
                     videoList.appendChild(videoCard);
                 });
 
-                // Add event listeners for "Xem thêm"/"Ẩn đi" buttons
+                // Add event listeners for "Xem thêm" buttons
                 document.querySelectorAll('.read-more').forEach(button => {
                     button.addEventListener('click', () => {
                         const description = button.previousElementSibling;
                         const fullText = description.dataset.full;
-                        if (button.textContent === 'Xem thêm') {
-                            description.textContent = fullText;
-                            description.style.display = 'block'; // Full description wraps normally
-                            button.textContent = 'Ẩn đi';
-                        } else {
-                            description.textContent = fullText.substring(0, 50) + '...';
-                            description.style.display = 'inline'; // Truncated description inline with button
-                            button.textContent = 'Xem thêm';
-                        }
+                        const videoCard = button.closest('.video-card');
+                        const title = videoCard.querySelector('.video-title').textContent;
+                        const thumbnail = videoCard.querySelector('.thumbnail').src;
+                        const link = videoCard.querySelector('.video-title').href;
+                        const views = formatViews(videoCard.querySelector('.stats-container span:nth-child(1)').textContent.replace('👁️ ', ''));
+                        const likes = videoCard.querySelector('.stats-container span:nth-child(3)').textContent.replace('❤️ ', '');
+                        const rating = videoCard.querySelector('.stats-container span:nth-child(5)').textContent.replace('⭐ ', '');
+
+                        // Populate popup
+                        document.getElementById('popup-thumbnail').src = thumbnail;
+                        document.getElementById('popup-title').textContent = title;
+                        document.getElementById('popup-link').href = link;
+                        document.getElementById('popup-title-link').href = link;
+                        document.getElementById('popup-description').textContent = fullText;
+                        document.getElementById('popup-views').textContent = `👁️ ${views}`;
+                        document.getElementById('popup-likes').textContent = `❤️ ${likes}`;
+                        document.getElementById('popup-rating').textContent = `⭐ ${rating}`;
+
+                        // Show popup
+                        document.getElementById('popup-modal').style.display = 'flex';
                     });
                 });
 
@@ -287,6 +367,37 @@
                     pagination.appendChild(pageInput);
                 });
             }
+
+            // Popup handling
+            const modal = document.getElementById('popup-modal');
+            const closeBtn = document.querySelector('.close-btn');
+
+            // Close on click outside or close button
+            window.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            // Swipe up to close (for mobile)
+            let touchStartY = 0;
+            let touchEndY = 0;
+            const popupContent = document.querySelector('.popup-content');
+
+            popupContent.addEventListener('touchstart', (e) => {
+                touchStartY = e.changedTouches[0].screenY;
+            });
+
+            popupContent.addEventListener('touchend', (e) => {
+                touchEndY = e.changedTouches[0].screenY;
+                if (touchStartY - touchEndY > 50) { // Swipe up threshold
+                    modal.style.display = 'none';
+                }
+            });
 
             displayVideos(currentPage);
         }
