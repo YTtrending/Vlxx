@@ -174,7 +174,7 @@ def detail_worker(config):
 
             detail_data = scrape_detail(detail_link)
             if detail_data:
-                print(f"Đã scrape chi tiết cho {detail_link}")
+                print(f"Scraped:  {detail_link}")
                 with sheets_lock:
                     for video in all_video_data:
                         if video['id'] == detail_data['video_id'] and video['link'] == detail_link:
@@ -306,3 +306,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
