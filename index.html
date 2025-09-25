@@ -460,20 +460,21 @@
             // Swipe handling for popup
             let touchStartY = 0;
             let touchStartTime = 0;
+            let isAtStartBottom = false;
 
             popupContent.addEventListener('touchstart', (e) => {
                 touchStartY = e.changedTouches[0].screenY;
                 touchStartTime = Date.now();
+                isAtStartBottom = popupContent.scrollTop + popupContent.clientHeight >= popupContent.scrollHeight - 1; // Small tolerance
             });
 
             popupContent.addEventListener('touchend', (e) => {
                 const touchEndY = e.changedTouches[0].screenY;
                 const touchDuration = Date.now() - touchStartTime;
                 const distance = touchStartY - touchEndY;
-                const isAtBottom = popupContent.scrollTop + popupContent.clientHeight >= popupContent.scrollHeight;
 
-                // Close popup if swiped up at bottom (any speed) or swiped up fast (distance > 100px, duration < 200ms)
-                if ((isAtBottom && distance > 0) || (!isAtBottom && distance > 100 && touchDuration < 200)) {
+                // Close popup if started at bottom and swiped up (any speed) or swiped up fast (distance > 100px, duration < 200ms)
+                if ((isAtStartBottom && distance > 0) || (!isAtStartBottom && distance > 100 && touchDuration < 200)) {
                     modal.style.display = 'none';
                     document.body.classList.remove('no-scroll');
                     window.scrollTo({ top: scrollPosition, behavior: 'instant' });
