@@ -1,9 +1,9 @@
 {
   "DOMAIN": "https://vlxx.bz",
-  "NUM_THREADS": 10,
-  "DETAIL_THREADS": 5,
+  "NUM_THREADS": 100,
+  "DETAIL_THREADS": 100,
   "MAX_PAGES": 200,
-  "DETAIL_DELAY": 2.0,
+  "DETAIL_DELAY": 1.0,
   "SHEET_ID": "1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE",
   "CREDENTIALS_FILE": "credentials.json",
   "TEMP_CSV": "temp_videos.csv",
