@@ -18,35 +18,39 @@
         .pagination-btn.active { background-color: #2563eb; color: white; }
         .pagination-btn:disabled { background-color: #e5e7eb; cursor: not-allowed; }
         .page-input { width: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; }
-        .thumbnail { width: 100%; max-width: 100%; height: auto; }
+        .thumbnail { width: 100%; max-width: 100%; height: auto; display: block; }
+        .thumbnail-container { width: 100%; padding: 0; }
         .filter-box { max-width: 100%; }
-        .video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+        .video-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem; }
         @media (max-width: 640px) {
-            .video-card { flex-direction: column; padding: 0.5rem; }
-            .video-card .ml-4 { margin-left: 0; margin-top: 0.5rem; }
-            .text-xl { font-size: 1rem; }
-            .text-sm { font-size: 0.75rem; }
-            .pagination-btn { padding: 8px 16px; font-size: 0.875rem; }
-            .page-input { width: 50px; padding: 6px; }
-            .video-grid { gap: 0.5rem; }
+            .video-card { flex-direction: column; padding: 0.125rem; }
+            .video-card .ml-4 { margin-left: 0; margin-top: 0.125rem; }
+            .text-xl { font-size: 0.875rem; }
+            .text-sm { font-size: 0.625rem; }
+            .pagination-btn { padding: 6px 12px; font-size: 0.75rem; }
+            .page-input { width: 40px; padding: 4px; }
+            .video-grid { gap: 0.25rem; }
+            .description, .read-more, .text-xs { margin-top: 0.125rem; }
         }
         @media (min-width: 641px) and (max-width: 1024px) {
-            .video-card { flex-direction: column; padding: 1rem; }
-            .video-card .ml-4 { margin-left: 0; margin-top: 0.5rem; }
+            .video-card { flex-direction: column; padding: 0.5rem; }
+            .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1.125rem; }
             .text-sm { font-size: 0.875rem; }
             .pagination-btn { padding: 10px 20px; font-size: 1rem; }
             .page-input { width: 60px; padding: 8px; }
-            .video-grid { gap: 1rem; }
+            .video-grid { grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+            .description, .read-more, .text-xs { margin-top: 0.25rem; }
         }
         @media (min-width: 1025px) {
-            .video-card { flex-direction: column; padding: 1.5rem; }
-            .video-card .ml-4 { margin-left: 0; margin-top: 0.5rem; }
+            .video-card { flex-direction: column; padding: 0.75rem; }
+            .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
             .text-xl { font-size: 1.25rem; }
             .text-sm { font-size: 1rem; }
             .pagination-btn { padding: 12px 24px; font-size: 1.125rem; }
             .page-input { width: 70px; padding: 10px; }
-            .video-grid { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+            .video-grid { grid-template-columns: repeat(5, 1fr); gap: 1.5rem; }
+            .description, .read-more, .text-xs { margin-top: 0.25rem; }
         }
     </style>
 </head>
@@ -76,41 +80,23 @@
                 data = await response.json();
             } catch (error) {
                 console.warn('Error loading data.txt, using fallback data:', error);
-                // Fallback to sample data
+                // Fallback to simplified sample data
                 data = [
                     {
-                        "page": 1,
                         "id": 2962,
                         "title": "Trốn trong tủ nhìn vợ mình \"cưỡi ngựa\" cùng cấp dưới",
                         "link": "https://vlxx.bz/video/tron-trong-tu-nhin-vo-minh-cuoi-ngua-cung-cap-duoi/2962/",
                         "thumbnail": "https://vlxx.bz/img2/2962.jpg",
-                        "ribbon": "Vietsub",
-                        "video_id": "2962",
-                        "likes": 762,
-                        "dislikes": 651,
-                        "rating": 54,
-                        "views": 646200,
-                        "video_code": "JUL-251",
-                        "video_link": "vlxx.bz/2962",
                         "description": "Tôi và Eimi quen nhau qua một người quen và tiến tới hôn nhân chỉ sau sáu tháng. Lúc mới cưới, bố mẹ của cả hai đều phản đối, nên Eimi và tôi quyết định sẽ có con sau khi tôi được thăng chức. Kinjo là hậu bối của tôi ở công ty, là người vô trách nhiệm, thường xuyên gây chuyện khiến tôi phải vất vả đi xử lý hậu quả. Hôm nay cậu ta làm bẩn quần áo, nhà tôi ở gần đó nên tôi đưa cậu ta về nhà tôi thay đồ. Cũng từ lần đó, Eimi bắt đầu cư xử kỳ lạ, dường như cô ấy đang dần xa cách tôi hơn. Hơn nữa, tô...",
-                        "actress": "Eimi Fukada"
+                        "views": 646200
                     },
                     {
-                        "page": 1,
                         "id": 2961,
                         "title": "Chị dâu, em chỉ đút cặc vào lồn chị... 3cm thôi",
                         "link": "https://vlxx.bz/video/chi-dau-em-chi-dut-cac-vao-lon-chi-3cm-thoi/2961/",
                         "thumbnail": "https://vlxx.bz/img2/2961.jpg",
-                        "ribbon": "Vietsub",
-                        "video_id": "2961",
-                        "likes": 1860,
-                        "dislikes": 1575,
-                        "rating": 54,
-                        "views": 1400000,
-                        "video_code": "MEYD-621",
-                        "video_link": "vlxx.bz/2961",
                         "description": "Anh trai và chị dâu Eimi của Yuji chuẩn bị về sống chung với cả nhà. Chị dâu Eimi vừa tốt bụng, lại vô cùng xinh đẹp khiến Yuji đã phải lòng cô ngay từ lần đầu gặp mặt. Khi không thể kìm nén cảm xúc của bản thân được nữa, Yuji đã mạnh dạn thổ lộ với Eimi nhưng bị từ chối. Không bỏ cuộc, Yuji liên tục thổ lộ với Eimi, cầu xin cô cho cậu hôn một lần thôi, Eimi miễn cưỡng đồng ý. Nhưng từ hôn, Yuji bắt đầu đòi hỏi nhiều hơn, đến bú cặc, đến đút cặc vào trong lồn của cô 3 cm thôi! Nhưng dù chỉ đút v...",
-                        "actress": "Eimi Fukada"
+                        "views": 1400000
                     }
                 ];
             }
@@ -124,8 +110,8 @@
                 data.sort((a, b) => {
                     if (sortBy === 'id') return parseInt(b.id) - parseInt(a.id);
                     if (sortBy === 'views') return parseFloat(b.views) - parseFloat(a.views);
-                    if (sortBy === 'likes') return parseFloat(b.likes) - parseFloat(a.likes);
-                    if (sortBy === 'rating') return parseFloat(b.rating) - parseFloat(a.rating);
+                    if (sortBy === 'likes') return parseFloat(b.likes || 0) - parseFloat(a.likes || 0);
+                    if (sortBy === 'rating') return parseFloat(b.rating || 0) - parseFloat(a.rating || 0);
                     return 0;
                 });
             }
@@ -153,14 +139,16 @@
                     const videoCard = document.createElement('div');
                     videoCard.className = 'video-card bg-white rounded-lg shadow-md flex';
                     videoCard.innerHTML = `
-                        <a href="${video.link}" target="_blank" class="flex-shrink-0 w-full">
-                            <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail object-cover rounded">
-                        </a>
+                        <div class="thumbnail-container">
+                            <a href="${video.link}" target="_blank" class="flex-shrink-0 w-full">
+                                <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail object-cover rounded-t">
+                            </a>
+                        </div>
                         <div class="ml-4 flex-1">
                             <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
-                            <p class="text-gray-600 mt-1 text-sm description" data-full="${video.description}">${video.description.substring(0, 100)}...</p>
+                            <p class="text-gray-600 mt-1 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
                             <button class="read-more text-blue-500 text-sm mt-1 hover:underline">Xem thêm</button>
-                            <p class="text-xs text-gray-500 mt-1 sm:text-sm">Actress: ${video.actress} | Views: ${formatViews(video.views)} | Rating: ${video.rating}%</p>
+                            <p class="text-xs text-gray-500 mt-1 sm:text-sm">Views: ${formatViews(video.views)}</p>
                             <p class="text-xs text-gray-500 sm:text-sm">${video.categories ? 'Categories: ' + video.categories : ''}</p>
                         </div>
                     `;
@@ -176,7 +164,7 @@
                             description.textContent = fullText;
                             button.textContent = 'Ẩn đi';
                         } else {
-                            description.textContent = fullText.substring(0, 100) + '...';
+                            description.textContent = fullText.substring(0, 50) + '...';
                             button.textContent = 'Xem thêm';
                         }
                     });
