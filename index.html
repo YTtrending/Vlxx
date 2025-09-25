@@ -28,7 +28,7 @@
         @media (max-width: 640px) {
             .video-card { flex-direction: column; padding: 0.125rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.125rem; }
-            .text-xl { font-size: 0.75rem; line-height: 1.1; }
+            .text-xl { font-size: 0.625rem; line-height: 1.1; }
             .text-sm { font-size: 0.75rem; line-height: 1.1; }
             .text-xs { font-size: 0.625rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
@@ -40,7 +40,7 @@
         @media (min-width: 641px) and (max-width: 1024px) {
             .video-card { flex-direction: column; padding: 0.5rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
-            .text-xl { font-size: 1.125rem; line-height: 1.1; }
+            .text-xl { font-size: 1rem; line-height: 1.1; }
             .text-sm { font-size: 1rem; line-height: 1.1; }
             .text-xs { font-size: 0.875rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
@@ -52,7 +52,7 @@
         @media (min-width: 1025px) {
             .video-card { flex-direction: column; padding: 0.75rem; }
             .video-card .ml-4 { margin-left: 0; margin-top: 0.25rem; }
-            .text-xl { font-size: 1.25rem; line-height: 1.1; }
+            .text-xl { font-size: 1.125rem; line-height: 1.1; }
             .text-sm { font-size: 1.125rem; line-height: 1.1; }
             .text-xs { font-size: 1rem; line-height: 1.1; }
             .read-more { line-height: 1.1; }
@@ -154,7 +154,7 @@
                             </a>
                         </div>
                         <div class="ml-4 flex-1">
-                            <a href="${video.link}" target="_blank" class="text-lg font-semibold text-blue-600 hover:underline sm:text-xl">${video.title}</a>
+                            <a href="${video.link}" target="_blank" class="text-lg font-bold text-red-600 hover:underline sm:text-xl">${video.title}</a>
                             <div class="description-container">
                                 <p class="text-gray-600 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
                                 <button class="read-more text-blue-500 text-sm hover:underline">Xem thêm</button>
