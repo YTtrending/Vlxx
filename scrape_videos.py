@@ -10,25 +10,6 @@ import pandas as pd
 import os
 import json
 
-# Configuration parameters
-NUM_THREADS = 100  # Số luồng cho scrape pagination
-DETAIL_THREADS = 500  # Số luồng cho scrape chi tiết
-MAX_PAGES = 200  # Số trang tối đa để scrape
-DETAIL_DELAY = 2.0  # Thời gian delay (giây) giữa các request chi tiết
-
-# Base URL templates
-HOME_URL = "https://vlxx.bz/"
-PAGE_URL = "https://vlxx.bz/new/{index}/"
-
-# Google Sheets config
-SHEET_ID = '1kMGN_Yfzz5MJdOzNIePBNcdCN4fRvrkCFz2uO3x40uE'
-SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-CREDENTIALS_FILE = 'credentials.json'
-
-# Output files
-TEMP_CSV = 'temp_videos.csv'
-DATA_TXT = 'data.txt'
-
 # Locks
 sheets_lock = threading.Lock()
 
@@ -39,11 +20,20 @@ stop_scraping = False
 queueing_complete = False
 all_video_data = []
 
+# Load config from config.json
+def load_config():
+    try:
+        with open('config.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Lỗi khi đọc config.json: {e}")
+        return {}
+
 # Load existing data from data.txt
-def load_existing_data():
-    if os.path.exists(DATA_TXT):
+def load_existing_data(config):
+    if os.path.exists(config['DATA_TXT']):
         try:
-            with open(DATA_TXT, 'r', encoding='utf-8') as f:
+            with open(config['DATA_TXT'], 'r', encoding='utf-8') as f:
                 existing_data = json.load(f)
             return existing_data
         except Exception:
@@ -51,12 +41,12 @@ def load_existing_data():
     return []
 
 # Scrape pagination page
-def scrape_page(page_num):
+def scrape_page(page_num, config):
     global stop_scraping
     if stop_scraping:
         return []
 
-    url = HOME_URL if page_num == 1 else PAGE_URL.format(index=page_num)
+    url = f"{config['DOMAIN']}/" if page_num == 1 else f"{config['DOMAIN']}/new/{page_num}/"
     try:
         response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
         response.raise_for_status()
@@ -75,11 +65,11 @@ def scrape_page(page_num):
         video_id = item.get('id', '').replace('video-', '') if item.get('id') else 'N/A'
         a_tag = item.find('a')
         title = a_tag.get('title', 'N/A') if a_tag else 'N/A'
-        link = urljoin("https://vlxx.bz", a_tag.get('href', 'N/A')) if a_tag else 'N/A'
+        link = urljoin(config['DOMAIN'], a_tag.get('href', 'N/A')) if a_tag else 'N/A'
         
         img_tag = item.find('img', class_='video-image')
         thumbnail = img_tag.get('data-original', img_tag.get('src', 'N/A')) if img_tag else 'N/A'
-        thumbnail = urljoin("https://vlxx.bz", thumbnail) if thumbnail != 'N/A' and not thumbnail.startswith('http') else thumbnail
+        thumbnail = urljoin(config['DOMAIN'], thumbnail) if thumbnail != 'N/A' and not thumbnail.startswith('http') else thumbnail
         
         ribbon_div = item.find('div', class_='ribbon')
         ribbon = ribbon_div.text.strip() if ribbon_div else 'N/A'
@@ -100,14 +90,14 @@ def scrape_page(page_num):
     return video_data
 
 # Worker for pagination
-def worker():
+def worker(config):
     while not stop_scraping:
         try:
             page_num = page_queue.get_nowait()
         except queue.Empty:
             break
         
-        scrape_page(page_num)
+        scrape_page(page_num, config)
         page_queue.task_done()
         time.sleep(0.5)
 
@@ -174,7 +164,7 @@ def scrape_detail(detail_link):
     return detail_data
 
 # Worker for details
-def detail_worker():
+def detail_worker(config):
     while not (queueing_complete and detail_queue.empty()):
         try:
             detail_link = detail_queue.get(timeout=5)
@@ -192,7 +182,7 @@ def detail_worker():
                             break
             
             detail_queue.task_done()
-            time.sleep(DETAIL_DELAY)
+            time.sleep(config['DETAIL_DELAY'])
         except queue.Empty:
             if queueing_complete:
                 break
@@ -200,38 +190,38 @@ def detail_worker():
             detail_queue.task_done()
 
 # Get pending details from Sheet
-def get_pending_details():
+def get_pending_details(config):
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
+        creds = ServiceAccountCredentials.from_json_keyfile_name(config['CREDENTIALS_FILE'], config['SCOPE'])
         client = gspread.authorize(creds)
-        sheet = client.open_by_key(SHEET_ID).sheet1
+        sheet = client.open_by_key(config['SHEET_ID']).sheet1
         records = sheet.get_all_records()
         return [row['link'] for row in records if 'link' in row and row['link'] != 'N/A']
     except Exception:
         return []
 
 # Save data.txt as JSON, sorted by page (asc) and id (desc)
-def save_data_txt():
+def save_data_txt(config):
     try:
         df = pd.DataFrame(all_video_data)
         df['id'] = pd.to_numeric(df['id'], errors='coerce')
         df = df.drop_duplicates(subset=['id', 'link'], keep='last')
         df = df.sort_values(by=['page', 'id'], ascending=[True, False])
         sorted_data = df.to_dict('records')
-        with open(DATA_TXT, 'w', encoding='utf-8') as f:
+        with open(config['DATA_TXT'], 'w', encoding='utf-8') as f:
             json.dump(sorted_data, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 
 # Update Google Sheets
-def update_google_sheets():
-    if not os.path.exists(CREDENTIALS_FILE):
+def update_google_sheets(config):
+    if not os.path.exists(config['CREDENTIALS_FILE']):
         return
 
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
+        creds = ServiceAccountCredentials.from_json_keyfile_name(config['CREDENTIALS_FILE'], config['SCOPE'])
         client = gspread.authorize(creds)
-        sheet = client.open_by_key(SHEET_ID).sheet1
+        sheet = client.open_by_key(config['SHEET_ID']).sheet1
         
         if all_video_data:
             df = pd.DataFrame(all_video_data)
@@ -240,7 +230,7 @@ def update_google_sheets():
             df = df.sort_values(by=['page', 'id'], ascending=[True, False])
             values = [df.columns.values.tolist()] + df.values.tolist()
             
-            df.to_csv(TEMP_CSV, index=False, encoding='utf-8')
+            df.to_csv(config['TEMP_CSV'], index=False, encoding='utf-8')
             with sheets_lock:
                 sheet.clear()
                 sheet.update(values=values, range_name='A1')
@@ -252,16 +242,22 @@ def main():
     global stop_scraping, queueing_complete
     start_total = time.time()
 
+    # Load config
+    config = load_config()
+    if not config:
+        print("Không thể đọc config.json, thoát!")
+        return
+
     # Step 1: Load existing data from data.txt
-    all_video_data.extend(load_existing_data())
+    all_video_data.extend(load_existing_data(config))
 
     # Step 2: Scrape pagination
-    for page_num in range(1, MAX_PAGES + 1):
+    for page_num in range(1, config['MAX_PAGES'] + 1):
         page_queue.put(page_num)
 
     threads = []
-    for _ in range(NUM_THREADS):
-        t = threading.Thread(target=worker)
+    for _ in range(config['NUM_THREADS']):
+        t = threading.Thread(target=worker, args=(config,))
         t.start()
         threads.append(t)
     
@@ -269,7 +265,7 @@ def main():
         t.join()
 
     # Step 3: Get pending details
-    pending_links = get_pending_details()
+    pending_links = get_pending_details(config)
     new_unscraped = [video['link'] for video in all_video_data if 'link' in video and video['link'] != 'N/A']
     pending_links.extend(new_unscraped)
     pending_links = list(set(pending_links))  # Remove duplicates
@@ -282,8 +278,8 @@ def main():
 
     # Step 5: Scrape details with multiple threads
     detail_threads_list = []
-    for _ in range(min(DETAIL_THREADS, len(pending_links))):
-        t = threading.Thread(target=detail_worker)
+    for _ in range(min(config['DETAIL_THREADS'], len(pending_links))):
+        t = threading.Thread(target=detail_worker, args=(config,))
         t.start()
         detail_threads_list.append(t)
     
@@ -305,9 +301,8 @@ def main():
     print(f"Tổng kết: {total_pages} trang, {total_videos} video, {total_detailed} video chi tiết, {elapsed_total:.2f}s")
 
     if all_video_data:
-        save_data_txt()
-        update_google_sheets()
+        save_data_txt(config)
+        update_google_sheets(config)
 
 if __name__ == "__main__":
     main()
-
