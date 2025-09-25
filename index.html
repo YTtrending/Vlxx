@@ -269,7 +269,7 @@
                         const likes = videoCard.querySelector('.stats-container span:nth-child(3)').textContent.replace('❤️ ', '');
                         const rating = videoCard.querySelector('.stats-container span:nth-child(5)').textContent.replace('⭐ ', '');
 
-                        // Save current scroll position
+                        // Save current scroll position of the main page
                         scrollPosition = window.scrollY;
 
                         // Populate popup
@@ -282,9 +282,10 @@
                         document.getElementById('popup-likes').textContent = `❤️ ${likes}`;
                         document.getElementById('popup-rating').textContent = `⭐ ${rating}`;
 
-                        // Show popup and lock body scroll
+                        // Show popup, lock body scroll, and reset popup scroll to top
                         document.body.classList.add('no-scroll');
                         document.getElementById('popup-modal').style.display = 'flex';
+                        document.querySelector('.popup-content').scrollTop = 0; // Reset popup scroll to top
                     });
                 });
 
