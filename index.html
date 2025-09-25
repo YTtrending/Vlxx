@@ -87,7 +87,7 @@
             max-width: 700px;
             border-radius: 8px;
             position: relative;
-            max-height: 80vh;
+            max-height: 90vh;
             overflow-y: auto;
             touch-action: pan-y;
             -webkit-overflow-scrolling: touch;
@@ -163,13 +163,15 @@
         async function loadVideos() {
             let data;
             try {
-                // Try fetching JSON data from data.txt
-                const response = await fetch('data.txt');
+                // Try fetching JSON data from data.txt with UTF-8 encoding
+                const response = await fetch('data.txt', {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
                 if (!response.ok) throw new Error('Failed to load data.txt');
                 data = await response.json();
             } catch (error) {
                 console.warn('Error loading data.txt, using fallback data:', error);
-                // Fallback to simplified sample data
+                // Fallback to simplified sample data with properly escaped description
                 data = [
                     {
                         "id": 2962,
@@ -190,6 +192,23 @@
                         "views": 1400000,
                         "likes": 2500,
                         "rating": 4.8
+                    },
+                    {
+                        "page": 2,
+                        "id": 2929,
+                        "title": "Thợ săn trai tân",
+                        "link": "https://vlxx.bz/video/tho-san-trai-tan/2929/",
+                        "thumbnail": "https://vlxx.bz/img2/2929.jpg",
+                        "ribbon": "Vietsub",
+                        "video_id": "2929",
+                        "likes": 3737,
+                        "dislikes": 3114,
+                        "rating": 55,
+                        "views": 3300000,
+                        "video_code": "CAWD-827",
+                        "video_link": "vlxx.bz/2929",
+                        "description": "Mayuki có sở thích lấy đi lần đầu của các cậu trai trẻ, vì vậy mà cô có biệt danh là \"thợ săn trai tân\". Mayuki thường xuyên lên các ứng dụng hẹn hò để tìm kiếm mục tiêu. Với trình độ của cô, chỉ cần xem qua profile là có thể xác định được người đó có phải là trai tân hay không. Hôm nay Mayuki gặp được một profile vô cùng \"quê mùa\", xác định được đối phương là trai tân, Mayuki liền nhắn tin đề nghị gặp mặt. Qua vẻ mặt hồi hộp, cử chỉ tiếp xúc thân mật vụng về của đối phương, Mayuki càng hài lòng và quyết định cho cậu ta một đêm không thể nào quên. Khi đến khách sạn, Mayuki đã bị bất ngờ bởi con cặc bự của cậu trai trẻ. Khi bắt đầu \"hành sự\", cậu thanh niên nhanh chóng không chịu nổi mà bất ngờ bắn tinh vào ngập lồn của Mayuki. Chuyện này cũng thường xảy ra, Mayuki chỉ hy vọng đêm nay cậu ta bắn được hai phát là tốt rồi. Ai ngờ chưa kịp nghỉ ngơi, cậu ta liền lập tức đút cặc vào lại trong lồn của Mayuki, điều bất ngờ hơn nữa là con cặc của cậu ta vẫn còn cứng ngắc dù vừa mới bắn tinh.",
+                        "actress": "Mayuki Ito"
                     }
                 ];
             }
@@ -241,7 +260,7 @@
                         <div class="video-content p-2">
                             <a href="${video.link}" target="_blank" class="video-title text-lg font-bold text-white hover:underline sm:text-xl">${video.title}</a>
                             <div class="description-container mt-2">
-                                <p class="text-gray-300 text-sm description" data-full="${video.description}">${video.description.substring(0, 50)}...</p>
+                                <p class="text-gray-300 text-sm description" data-full="${video.description.replace(/"/g, '&quot;')}">${video.description.substring(0, 100)}...</p>
                                 <button class="read-more text-blue-400 text-sm hover:underline">Xem thêm</button>
                             </div>
                             <div class="stats-container text-gray-500 text-xs sm:text-sm mt-2">
